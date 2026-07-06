@@ -6,6 +6,15 @@
         :root { --mg: #075e54; --lg: #dcf8c6; --bg: #e5ddd5; --msg-bg: white; --txt: black; }
         body.dark { --bg: #1e1e1e; --msg-bg: #333; --txt: #eee; --lg: #054c44; --mg: #000; color: var(--txt); }
         body { font-family: sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+        
+        /* Login Screen Styles */
+        #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+        #login-form { background: var(--msg-bg); padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; width: 300px; }
+        #login-form input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; background: var(--bg); color: var(--txt); }
+        #login-form button { padding: 10px; background: var(--mg); color: white; border: none; border-radius: 5px; font-size: 1em; cursor: pointer; }
+        #login-form button:hover { opacity: 0.9; }
+        #login-error { color: red; font-size: 0.9em; text-align: center; }
+
         #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
         header { background: var(--mg); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; }
         header button, header select, header input { background: #128c7e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
@@ -55,17 +64,30 @@
     </style>
 </head>
 <body>
-<div id="main-chat">
+<!-- Login Screen -->
+<div id="login-screen">
+    <h2>Welcome to Our Private Chat</h2>
+    <div id="login-form">
+        <input type="email" id="login-email" placeholder="Email" />
+        <input type="password" id="login-password" placeholder="Password" />
+        <button id="login-btn">Login</button>
+        <button id="signup-btn" style="background:#5cb85c;">Sign Up (First Time Only)</button>
+        <p id="login-error"></p>
+    </div>
+</div>
+
+<div id="main-chat" style="display:none;"> <!-- Hidden until logged in -->
     <header>
         <div style="display:flex;gap:5px;align-items:center;">
             <button id="dark-toggle" style="background:none;font-size:16px;">🌙</button>
-            <select id="user-selector"><option value="Husband">Husband</option><option value="Wife">Wife</option></select>
+            <span id="current-user-display" style="font-weight:bold;"></span> <!-- Displays "Husband" or "Wife" -->
             <input type="text" id="search-input" placeholder="Search messages..." />
         </div>
         <div style="display:flex;gap:5px;">
             <span id="other-user-status" style="font-size:12px;"></span>
             <button id="gallery-toggle">🖼️ Gallery</button>
             <button id="saved-toggle">⭐ Saved</button>
+            <button id="logout-btn" style="background:red;">Logout</button>
         </div>
     </header>
     <div id="chat-container"></div>
@@ -117,16 +139,31 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
     const config = { apiKey: "AIzaSyBYv5Pu7SCh9pRkgLKA9gelk7AZIr0Gfxw", authDomain: "ourchat-34326.firebaseapp.com", projectId: "ourchat-34326", storageBucket: "ourchat-34326.firebasestorage.app", messagingSenderId: "788530048366", appId: "1:788530048366:web:cc4e06882b86988ebf657f" };
     const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app), chatCol = collection(db, "messages");
-    const container = document.getElementById('chat-container'), input = document.getElementById('msg-input'), userSel = document.getElementById('user-selector'), picker = document.getElementById('emoji-picker');
+    const auth = getAuth(app); // Initialize Firebase Auth
+
+    // DOM Elements for Chat UI
+    const container = document.getElementById('chat-container'), input = document.getElementById('msg-input'), picker = document.getElementById('emoji-picker');
     const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview');
     const searchInput = document.getElementById('search-input');
     const otherUserStatus = document.getElementById('other-user-status');
+    const currentUserDisplay = document.getElementById('current-user-display'); // For displaying "Husband" or "Wife"
 
+    // DOM Elements for Login UI
+    const loginScreen = document.getElementById('login-screen');
+    const loginEmail = document.getElementById('login-email');
+    const loginPassword = document.getElementById('login-password');
+    const loginBtn = document.getElementById('login-btn');
+    const signupBtn = document.getElementById('signup-btn');
+    const loginError = document.getElementById('login-error');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    let currentUserRole = null; // Will be "Husband" or "Wife" based on logged-in user
     let replyingTo = null;
     let pendingImageFile = null;
     let currentSearchTerm = '';
@@ -151,8 +188,8 @@
 
     let userActivityTimeout;
     function updateMyStatus(onlineState) {
-        const myUser = userSel.value;
-        const statusDocRef = doc(db, "status", myUser);
+        if (!currentUserRole) return; // Only update status if authenticated
+        const statusDocRef = doc(db, "status", currentUserRole);
         const updateData = { online: onlineState, lastSeen: serverTimestamp() };
         setDoc(statusDocRef, updateData, { merge: true });
     }
@@ -161,16 +198,15 @@
     window.addEventListener('blur', () => { userActivityTimeout = setTimeout(() => updateMyStatus(false), 5000); });
     window.addEventListener('beforeunload', () => updateMyStatus(false));
 
-    userSel.addEventListener('change', () => { updateMyStatus(true); });
-
+    // Listen for other user's status updates
     onSnapshot(collection(db, "status"), (snap) => {
-        const myUser = userSel.value;
-        const otherUser = myUser === "Husband" ? "Wife" : "Husband";
-        const otherStatusDoc = snap.docs.find(d => d.id === otherUser);
+        if (!currentUserRole) return;
+        const otherUserRole = currentUserRole === "Husband" ? "Wife" : "Husband";
+        const otherStatusDoc = snap.docs.find(d => d.id === otherUserRole);
         const otherData = otherStatusDoc?.data();
 
         if (otherData?.online && (serverTimestamp().seconds - (otherData.lastSeen?.seconds || 0)) < 30) {
-            otherUserStatus.innerText = `${otherUser} is Online`;
+            otherUserStatus.innerText = `${otherUserRole} is Online`;
             otherUserStatus.style.color = '#28a745';
         } else if (otherData?.lastSeen) {
             const lastSeenDate = otherData.lastSeen.toDate();
@@ -186,9 +222,11 @@
             otherUserStatus.innerText = '';
         }
     });
-    updateMyStatus(true);
-
+    
+    // --- Render Chat Display Function ---
     function renderChatDisplay() {
+        if (!currentUserRole) return; // Don't render if not authenticated
+
         let msgsFilteredForDisplay = []; 
         let savedsToRender = [];
         let imagesForGallery = []; 
@@ -212,7 +250,7 @@
 
         container.innerHTML = '';
         msgsFilteredForDisplay.forEach(m => {
-            const isMe = m.user === userSel.value, div = document.createElement('div');
+            const isMe = m.user === currentUserRole, div = document.createElement('div'); // Use currentUserRole here
             div.className = `message ${isMe ? 'sent' : 'received'}`;
             const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
             div.innerHTML = `<div class="reaction-menu">
@@ -234,14 +272,15 @@
         document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
     }
 
-    let firstLoad = true;
+    let firstLoadChat = true; // Changed variable name to avoid conflict with `firstLoad` in onAuthStateChanged
     onSnapshot(chatCol, (snap) => {
+        if (!currentUserRole) return; // Do not process chat messages if not authenticated
         let tempAllMessages = [];
         let tempAllImages = [];
 
         snap.docChanges().forEach(c => { 
             if (c.type === "added") {
-                if (!firstLoad && c.doc.data().user !== userSel.value) notify(c.doc.data().user, c.doc.data().text);
+                if (!firstLoadChat && c.doc.data().user !== currentUserRole) notify(c.doc.data().user, c.doc.data().text);
             }
         });
         
@@ -261,13 +300,13 @@
         if (!currentSearchTerm && snap.docChanges().some(c => c.type === "added")) {
              container.scrollTop = container.scrollHeight;
         }
-        firstLoad = false;
+        firstLoadChat = false;
     });
 
-    window.react = async (id, e) => updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 });
-    window.save = async (id, s) => updateDoc(doc(db, "messages", id), { isSaved: !s });
-    window.delMsg = async (id) => { if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
-    window.editMsg = async (id, oldText) => { const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
+    window.react = async (id, e) => { if(!currentUserRole) return; updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 }); };
+    window.save = async (id, s) => { if(!currentUserRole) return; updateDoc(doc(db, "messages", id), { isSaved: !s }); };
+    window.delMsg = async (id) => { if(!currentUserRole) return; if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
+    window.editMsg = async (id, oldText) => { if(!currentUserRole) return; const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
     
     window.setReply = (txt) => { replyingTo = txt; document.getElementById('reply-text').innerText = txt; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
     window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').style.display = 'none'; };
@@ -275,10 +314,11 @@
     window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; imagePreview.src = ''; };
 
     async function send() { 
+        if (!currentUserRole) { loginError.innerText = "Please login to send messages."; return; }
         const t = input.value.trim(); 
         if (!t && !pendingImageFile) return; 
 
-        const u = userSel.value; 
+        const u = currentUserRole; // Use authenticated user's role
         input.value = ""; 
         const r = replyingTo; 
         window.cancelReply();
@@ -308,10 +348,10 @@
     ti.onclick = () => { ti.classList.add('active'); tl.classList.remove('active'); vi.style.display = 'grid'; vl.style.display = 'none'; };
     tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'flex'; vi.style.display = 'none'; };
 
-    input.oninput = () => { setDoc(doc(db, "status", userSel.value), { typing: true }); setTimeout(() => setDoc(doc(db, "status", userSel.value), { typing: false }), 3000); };
-    onSnapshot(collection(db, "status"), (s) => { const other = userSel.value === "Husband" ? "Wife" : "Husband", st = s.docs.find(d => d.id === other); document.getElementById('typing-indicator').innerText = st?.data()?.typing ? `${other} is typing...` : ""; });
+    input.oninput = () => { if(!currentUserRole) return; setDoc(doc(db, "status", currentUserRole), { typing: true }); setTimeout(() => setDoc(doc(db, "status", currentUserRole), { typing: false }), 3000); };
     
     window.addEventListener('paste', async e => {
+        if (!currentUserRole) { loginError.innerText = "Please login to send images."; return; }
         const item = Array.from(e.clipboardData.items).find(x => x.type.indexOf('image') !== -1);
         if (item) {
             pendingImageFile = item.getAsFile();
@@ -364,6 +404,65 @@
             if (e.key === 'Escape') mediaViewerModal.style.display = 'none';
             else if (e.key === 'ArrowLeft') mediaViewerPrevBtn.click();
             else if (e.key === 'ArrowRight') mediaViewerNextBtn.click();
+        }
+    });
+
+    // --- Firebase Auth Logic ---
+    loginBtn.onclick = async () => {
+        loginError.innerText = '';
+        try {
+            await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
+        } catch (error) {
+            loginError.innerText = error.message;
+        }
+    };
+
+    signupBtn.onclick = async () => {
+        loginError.innerText = '';
+        try {
+            await createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
+            alert("Account created! You can now log in.");
+        } catch (error) {
+            loginError.innerText = error.message;
+        }
+    };
+
+    logoutBtn.onclick = async () => {
+        await signOut(auth);
+    };
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // User is signed in
+            loginScreen.style.display = 'none';
+            document.getElementById('main-chat').style.display = 'flex';
+
+            if (user.email === 'Mitchell.beckner@gmail.com') {
+                currentUserRole = 'Husband';
+            } else if (user.email === 'Demetrybeckner@gmail.com') {
+                currentUserRole = 'Wife';
+            } else {
+                // Handle unauthorized user trying to login (optional)
+                alert("Unauthorized user.");
+                signOut(auth);
+                return;
+            }
+            currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
+            updateMyStatus(true); // Set user as online
+            renderChatDisplay(); // Render chat for the logged-in user
+            
+            // Re-initialize snapshot listeners if they were off or need current user context
+            // The existing onSnapshot listeners are global and will re-run when auth changes.
+        } else {
+            // User is signed out
+            loginScreen.style.display = 'flex';
+            document.getElementById('main-chat').style.display = 'none';
+            currentUserRole = null;
+            currentUserDisplay.innerText = '';
+            // Clear any active typing/online status for this user
+            if (auth.currentUser) { // If a user was just logged out
+                setDoc(doc(db, "status", auth.currentUser.email === 'Mitchell.beckner@gmail.com' ? 'Husband' : 'Wife'), { online: false, lastSeen: serverTimestamp() }, { merge: true });
+            }
         }
     });
 </script>
