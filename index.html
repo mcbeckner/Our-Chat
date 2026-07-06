@@ -157,7 +157,7 @@
     // DOM Elements for Login UI
     const loginScreen = document.getElementById('login-screen');
     const loginEmail = document.getElementById('login-email');
-    const loginPassword = document.getElementById('login-password');
+    const loginPassword = document('login-password');
     const loginBtn = document.getElementById('login-btn');
     const signupBtn = document.getElementById('signup-btn');
     const loginError = document.getElementById('login-error');
@@ -225,11 +225,14 @@
     });
     
     // --- Render Chat Display Function ---
-    function renderChatDisplay(scrollToBottom = false) { // Added scrollToBottom parameter
+    function renderChatDisplay(shouldAutoScroll = false) { // shouldAutoScroll now explicitly controls scrolling
         if (!currentUserRole) { // Don't render if not authenticated
             container.innerHTML = ''; // Clear chat if not logged in
             return; 
         }
+
+        const currentScrollTop = container.scrollTop;
+        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= currentScrollTop + 1; // Tolerance for "at bottom"
 
         let msgsFilteredForDisplay = []; 
         let savedsToRender = [];
@@ -275,14 +278,27 @@
         document.getElementById('gal-img-view').innerHTML = imagesForGallery.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
         document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
 
-        if (scrollToBottom && !currentSearchTerm) {
-             container.scrollTop = container.scrollHeight;
+        // Scroll management logic
+        if (shouldAutoScroll && !currentSearchTerm) { // Only auto-scroll if new message AND not searching
+            container.scrollTop = container.scrollHeight;
+        } else if (!shouldAutoScroll) { // If it's not a new message (e.g., reaction/edit)
+            // Try to maintain scroll position relative to bottom if user was already at bottom,
+            // otherwise just keep current scroll position
+            if (isScrolledToBottom) {
+                container.scrollTop = container.scrollHeight;
+            } else {
+                container.scrollTop = currentScrollTop;
+            }
         }
     }
+
+    let firstLoadChat = true; 
+    let chatColRef; // Declare chatColRef here
 
     // --- onAuthStateChanged Listener ---
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            // User is signed in
             loginScreen.style.display = 'none';
             document.getElementById('main-chat').style.display = 'flex';
 
@@ -300,13 +316,13 @@
             currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
             updateMyStatus(true); // Set user as online
 
-            // Only subscribe to chat messages if not already subscribed and user is authenticated
+            // Subscribe to chat messages only once user is authenticated
             if (!chatUnsubscribe) {
-                const chatColRef = collection(db, "messages");
+                chatColRef = collection(db, "messages"); // Initialize chatColRef here
                 chatUnsubscribe = onSnapshot(chatColRef, (snap) => {
                     let tempAllMessages = [];
                     let tempAllImages = [];
-                    let shouldScrollToBottom = false; // Flag for auto-scroll
+                    let shouldAutoScroll = false; // Flag for auto-scroll
 
                     snap.docChanges().forEach(c => { 
                         if (c.type === "added") {
@@ -314,7 +330,7 @@
                             if (!firstLoadChat && c.doc.data().user !== currentUserRole) {
                                 notify(c.doc.data().user, c.doc.data().text);
                             }
-                            shouldScrollToBottom = true; // Mark for auto-scroll if any new message
+                            shouldAutoScroll = true; // Mark for auto-scroll if any new message
                         }
                     });
                     
@@ -329,7 +345,7 @@
                     allMessagesFromFirebase = tempAllMessages;
                     allImageUrlsAndCaptions = tempAllImages; 
 
-                    renderChatDisplay(shouldScrollToBottom); // Pass scroll flag
+                    renderChatDisplay(shouldAutoScroll); // Pass scroll flag
                     
                     firstLoadChat = false;
                 });
@@ -343,17 +359,18 @@
             
             // Unsubscribe from chat messages when user logs out
             if (chatUnsubscribe) {
-                chatUnsubscribe();
-                chatUnsubscribe = null;
+                chatUnsubscribe(); // Unsubscribe the listener
+                chatUnsubscribe = null; // Clear the unsubscribe function
             }
-            renderChatDisplay(); // Clear chat display for logged out state
+            container.innerHTML = ''; // Clear chat display for logged out state
+            firstLoadChat = true; // Reset for next login
         }
     });
 
-    window.react = async (id, e) => { if(!currentUserRole) return; updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 }); };
-    window.save = async (id, s) => { if(!currentUserRole) return; updateDoc(doc(db, "messages", id), { isSaved: !s }); };
-    window.delMsg = async (id) => { if(!currentUserRole) return; if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
-    window.editMsg = async (id, oldText) => { if(!currentUserRole) return; const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
+    window.react = async (id, e) => { if(!currentUserRole) { alert("Please login to react."); return; } updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 }); };
+    window.save = async (id, s) => { if(!currentUserRole) { alert("Please login to save messages."); return; } updateDoc(doc(db, "messages", id), { isSaved: !s }); };
+    window.delMsg = async (id) => { if(!currentUserRole) { alert("Please login to delete messages."); return; } if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
+    window.editMsg = async (id, oldText) => { if(!currentUserRole) { alert("Please login to edit messages."); return; } const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
     
     window.setReply = (txt) => { replyingTo = txt; document.getElementById('reply-text').innerText = txt; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
     window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').style.display = 'none'; };
@@ -422,7 +439,7 @@
     const mediaViewerCaption = document.getElementById('media-viewer-caption');
     const closeMediaViewerBtn = document.getElementById('close-media-viewer');
     const mediaViewerPrevBtn = document.getElementById('media-viewer-prev');
-    const mediaViewerNextBtn = document = document.getElementById('media-viewer-next'); // Fixed typo
+    const mediaViewerNextBtn = document.getElementById('media-viewer-next'); // Corrected typo
 
     let currentImageIndex = 0; 
 
