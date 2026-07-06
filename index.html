@@ -9,7 +9,7 @@
         #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
         header { background: var(--mg); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; }
         header button, header select, header input { background: #128c7e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
-        header input { background: #0e6c62; }
+        header input { background: #0e6c62; color: white; }
         #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         .message { max-width: 75%; padding: 10px; border-radius: 10px; box-shadow: 0 1px 2px #0002; position: relative; background: var(--msg-bg); color: var(--txt); }
         .sent { align-self: flex-end; background: var(--lg); }
@@ -47,7 +47,11 @@
         #media-viewer-caption { color: white; margin-top: 10px; font-size: 1.2em; }
         #media-viewer-controls { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 10px; }
         #media-viewer-controls button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.2em; }
-        #media-viewer-nav { position: absolute; bottom: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 10px; }
+        #media-viewer-nav { position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-between; align-items: center; }
+        #media-viewer-nav button { background: none; border: none; color: white; font-size: 3em; cursor: pointer; padding: 0 20px; }
+        #media-viewer-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .search-highlight { background-color: yellow; color: black; }
     </style>
 </head>
 <body>
@@ -126,8 +130,8 @@
     let replyingTo = null;
     let pendingImageFile = null;
     let currentSearchTerm = '';
-    let allImages = []; // Stores all image URLs for the media viewer
-    let currentImageIndex = 0;
+    let allMessagesFromFirebase = []; 
+    let allImageUrlsAndCaptions = []; 
 
     const ems = ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','👅','❤️'];
     ems.forEach(e => { const s = document.createElement('span'); s.innerText = e; s.style.cursor='pointer'; s.style.fontSize='20px'; s.onclick = (event) => { input.value += e; input.focus(); event.stopPropagation(); }; picker.appendChild(s); });
@@ -138,13 +142,13 @@
     if (Notification.permission !== "granted") Notification.requestPermission();
     function notify(u, t) { if (document.hidden && Notification.permission === "granted") new Notification(`${u} messaged`, { body: t || "Sent an image" }); }
     function linkify(text) { return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>'); }
+    
     function highlightSearch(text, term) {
         if (!term) return text;
         const regex = new RegExp(`(${term})`, 'gi');
-        return text.replace(regex, '<mark>$1</mark>');
+        return text.replace(regex, '<span class="search-highlight">$1</span>');
     }
 
-    // --- Online/Last Seen Status ---
     let userActivityTimeout;
     function updateMyStatus(onlineState) {
         const myUser = userSel.value;
@@ -154,10 +158,10 @@
     }
 
     window.addEventListener('focus', () => { updateMyStatus(true); clearTimeout(userActivityTimeout); });
-    window.addEventListener('blur', () => { userActivityTimeout = setTimeout(() => updateMyStatus(false), 5000); }); // Consider offline after 5 seconds of blur
-    window.addEventListener('beforeunload', () => updateMyStatus(false)); // Ensure offline status on close
+    window.addEventListener('blur', () => { userActivityTimeout = setTimeout(() => updateMyStatus(false), 5000); });
+    window.addEventListener('beforeunload', () => updateMyStatus(false));
 
-    userSel.addEventListener('change', () => { updateMyStatus(true); }); // Update status if user changes identity
+    userSel.addEventListener('change', () => { updateMyStatus(true); });
 
     onSnapshot(collection(db, "status"), (snap) => {
         const myUser = userSel.value;
@@ -165,56 +169,49 @@
         const otherStatusDoc = snap.docs.find(d => d.id === otherUser);
         const otherData = otherStatusDoc?.data();
 
-        if (otherData?.online && (serverTimestamp().seconds - otherData.lastSeen?.seconds || 0) < 30) {
+        if (otherData?.online && (serverTimestamp().seconds - (otherData.lastSeen?.seconds || 0)) < 30) {
             otherUserStatus.innerText = `${otherUser} is Online`;
-            otherUserStatus.style.color = '#28a745'; // Green
+            otherUserStatus.style.color = '#28a745';
         } else if (otherData?.lastSeen) {
             const lastSeenDate = otherData.lastSeen.toDate();
             const now = new Date();
             const diffMs = now - lastSeenDate;
             const diffMin = Math.round(diffMs / 60000);
-            if (diffMin < 60) otherUserStatus.innerText = `Last seen ${diffMin} min ago`;
+            
+            if (diffMin < 1) otherUserStatus.innerText = `Last seen just now`;
+            else if (diffMin < 60) otherUserStatus.innerText = `Last seen ${diffMin} min ago`;
             else otherUserStatus.innerText = `Last seen ${Math.round(diffMin/60)} hours ago`;
-            otherUserStatus.style.color = '#6c757d'; // Gray
+            otherUserStatus.style.color = '#6c757d';
         } else {
-            otherUserStatus.innerText = ''; // No status yet
+            otherUserStatus.innerText = '';
         }
     });
-    updateMyStatus(true); // Set initial status on load
+    updateMyStatus(true);
 
-    let firstLoad = true;
-    onSnapshot(chatCol, (snap) => {
-        let msgs = [], saveds = [], images = [], links = [];
-        let hasNewMessages = false;
-        
-        snap.docChanges().forEach(c => { 
-            if (c.type === "added") {
-                if (!firstLoad && c.doc.data().user !== userSel.value) notify(c.doc.data().user, c.doc.data().text);
-                hasNewMessages = true; // Mark if any new messages were added
+    function renderChatDisplay() {
+        let msgsFilteredForDisplay = []; 
+        let savedsToRender = [];
+        let imagesForGallery = []; 
+        let linksForGallery = [];
+
+        allMessagesFromFirebase.forEach(data => {
+            const messageMatchesSearch = !currentSearchTerm || (data.text && data.text.toLowerCase().includes(currentSearchTerm.toLowerCase()));
+
+            if (messageMatchesSearch) {
+                msgsFilteredForDisplay.push(data); 
+                if (data.isSaved) savedsToRender.push(data);
+                if (data.imageUrl) imagesForGallery.push({url: data.imageUrl, caption: data.text || 'Image'});
+                if (data.text) {
+                    const urls = data.text.match(/(https?:\/\/[^\s]+)/g);
+                    if (urls) urls.forEach(u => linksForGallery.push({u, user: data.user}));
+                }
             }
         });
-        
-        snap.forEach(d => { 
-            let data = { id: d.id, ...d.data() }; 
-            if (currentSearchTerm && data.text && !data.text.toLowerCase().includes(currentSearchTerm.toLowerCase())) {
-                // Skip messages that don't match the search term
-                return;
-            }
 
-            msgs.push(data); 
-            if (data.isSaved) saveds.push(data);
-            if (data.imageUrl) images.push({url: data.imageUrl, caption: data.text || 'Image'});
-            if (data.text) {
-                const urls = data.text.match(/(https?:\/\/[^\s]+)/g);
-                if (urls) urls.forEach(u => links.push({u, user: data.user}));
-            }
-        });
-        
-        allImages = images; // Update global images array for media viewer
-        
-        msgs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+        msgsFilteredForDisplay.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+
         container.innerHTML = '';
-        msgs.forEach(m => {
+        msgsFilteredForDisplay.forEach(m => {
             const isMe = m.user === userSel.value, div = document.createElement('div');
             div.className = `message ${isMe ? 'sent' : 'received'}`;
             const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
@@ -231,11 +228,40 @@
                 <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span></div>${rb}`;
             container.appendChild(div);
         });
-        if (hasNewMessages || currentSearchTerm) container.scrollTop = container.scrollHeight; // Only scroll if new messages or search active
+        
+        document.getElementById('saved-list').innerHTML = savedsToRender.map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text?linkify(s.text):'Image'}</div>`).join('');
+        document.getElementById('gal-img-view').innerHTML = imagesForGallery.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
+        document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
+    }
+
+    let firstLoad = true;
+    onSnapshot(chatCol, (snap) => {
+        let tempAllMessages = [];
+        let tempAllImages = [];
+
+        snap.docChanges().forEach(c => { 
+            if (c.type === "added") {
+                if (!firstLoad && c.doc.data().user !== userSel.value) notify(c.doc.data().user, c.doc.data().text);
+            }
+        });
+        
+        snap.forEach(d => { 
+            let data = { id: d.id, ...d.data() }; 
+            tempAllMessages.push(data); 
+            if (data.imageUrl) {
+                tempAllImages.push({url: data.imageUrl, caption: data.text || 'Image'});
+            }
+        });
+
+        allMessagesFromFirebase = tempAllMessages;
+        allImageUrlsAndCaptions = tempAllImages; 
+
+        renderChatDisplay(); 
+        
+        if (!currentSearchTerm && snap.docChanges().some(c => c.type === "added")) {
+             container.scrollTop = container.scrollHeight;
+        }
         firstLoad = false;
-        document.getElementById('saved-list').innerHTML = saveds.map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text?linkify(s.text):'Image'}</div>`).join('');
-        document.getElementById('gal-img-view').innerHTML = images.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
-        document.getElementById('gal-lnk-view').innerHTML = links.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
     });
 
     window.react = async (id, e) => updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 });
@@ -273,7 +299,11 @@
     document.getElementById('close-sidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
 
     const gal = document.getElementById('gallery-modal'), ti = document.getElementById('tab-img'), tl = document.getElementById('tab-lnk'), vi = document.getElementById('gal-img-view'), vl = document.getElementById('gal-lnk-view');
-    document.getElementById('gallery-toggle').onclick = () => gal.style.display = 'flex';
+    document.getElementById('gallery-toggle').onclick = () => {
+        ti.classList.add('active'); tl.classList.remove('active');
+        vi.style.display = 'grid'; vl.style.display = 'none';
+        gal.style.display = 'flex';
+    };
     document.getElementById('close-gallery').onclick = () => gal.style.display = 'none';
     ti.onclick = () => { ti.classList.add('active'); tl.classList.remove('active'); vi.style.display = 'grid'; vl.style.display = 'none'; };
     tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'flex'; vi.style.display = 'none'; };
@@ -295,21 +325,11 @@
         }
     });
 
-    // --- Search Input ---
     searchInput.addEventListener('input', () => {
         currentSearchTerm = searchInput.value.trim();
-        // Re-run the snapshot listener to re-render with filtered messages
-        // (This is implicitly done because onSnapshot runs on any data change,
-        // but explicit re-filtering happens within the snapshot handler)
-        // A simple way to force re-render with search term is to update a dummy value
-        // or just let it update on next message, but for immediate feedback:
-        // Re-fetching or re-filtering local 'msgs' array as done in onSnapshot is sufficient.
-        // The onSnapshot callback will be triggered to re-render the chat
-        // when the component's internal search state changes.
-        // Since `onSnapshot` re-renders all messages, this is effectively a re-filter.
+        renderChatDisplay(); 
     });
 
-    // --- Media Viewer Logic ---
     const mediaViewerModal = document.getElementById('media-viewer-modal');
     const mediaViewerImage = document.getElementById('media-viewer-image');
     const mediaViewerCaption = document.getElementById('media-viewer-caption');
@@ -317,19 +337,21 @@
     const mediaViewerPrevBtn = document.getElementById('media-viewer-prev');
     const mediaViewerNextBtn = document.getElementById('media-viewer-next');
 
+    let currentImageIndex = 0; 
+
     window.openMediaViewer = (imageUrl) => {
-        currentImageIndex = allImages.findIndex(item => item.url === imageUrl);
+        currentImageIndex = allImageUrlsAndCaptions.findIndex(item => item.url === imageUrl);
         showImageInViewer(currentImageIndex);
         mediaViewerModal.style.display = 'flex';
     };
 
     function showImageInViewer(index) {
-        if (index >= 0 && index < allImages.length) {
-            mediaViewerImage.src = allImages[index].url;
-            mediaViewerCaption.innerText = allImages[index].caption || '';
+        if (index >= 0 && index < allImageUrlsAndCaptions.length) {
+            mediaViewerImage.src = allImageUrlsAndCaptions[index].url;
+            mediaViewerCaption.innerText = allImageUrlsAndCaptions[index].caption || '';
             currentImageIndex = index;
             mediaViewerPrevBtn.disabled = (currentImageIndex === 0);
-            mediaViewerNextBtn.disabled = (currentImageIndex === allImages.length - 1);
+            mediaViewerNextBtn.disabled = (currentImageIndex === allImageUrlsAndCaptions.length - 1);
         }
     }
 
@@ -337,10 +359,11 @@
     mediaViewerPrevBtn.onclick = () => { showImageInViewer(currentImageIndex - 1); };
     mediaViewerNextBtn.onclick = () => { showImageInViewer(currentImageIndex + 1); };
 
-    // Close on escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && mediaViewerModal.style.display === 'flex') {
-            mediaViewerModal.style.display = 'none';
+        if (mediaViewerModal.style.display === 'flex') {
+            if (e.key === 'Escape') mediaViewerModal.style.display = 'none';
+            else if (e.key === 'ArrowLeft') mediaViewerPrevBtn.click();
+            else if (e.key === 'ArrowRight') mediaViewerNextBtn.click();
         }
     });
 </script>
