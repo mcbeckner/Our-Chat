@@ -144,7 +144,7 @@
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
     const config = { apiKey: "AIzaSyBYv5Pu7SCh9pRkgLKA9gelk7AZIr0Gfxw", authDomain: "ourchat-34326.firebaseapp.com", projectId: "ourchat-34326", storageBucket: "ourchat-34326.firebasestorage.app", messagingSenderId: "788530048366", appId: "1:788530048366:web:cc4e06882b86988ebf657f" };
-    const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app), chatCol = collection(db, "messages");
+    const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app);
     const auth = getAuth(app); // Initialize Firebase Auth
 
     // DOM Elements for Chat UI
@@ -169,6 +169,7 @@
     let currentSearchTerm = '';
     let allMessagesFromFirebase = []; 
     let allImageUrlsAndCaptions = []; 
+    let chatUnsubscribe = null; // To store the unsubscribe function for chat messages
 
     const ems = ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','👅','❤️'];
     ems.forEach(e => { const s = document.createElement('span'); s.innerText = e; s.style.cursor='pointer'; s.style.fontSize='20px'; s.onclick = (event) => { input.value += e; input.focus(); event.stopPropagation(); }; picker.appendChild(s); });
@@ -224,8 +225,11 @@
     });
     
     // --- Render Chat Display Function ---
-    function renderChatDisplay() {
-        if (!currentUserRole) return; // Don't render if not authenticated
+    function renderChatDisplay(scrollToBottom = false) { // Added scrollToBottom parameter
+        if (!currentUserRole) { // Don't render if not authenticated
+            container.innerHTML = ''; // Clear chat if not logged in
+            return; 
+        }
 
         let msgsFilteredForDisplay = []; 
         let savedsToRender = [];
@@ -270,38 +274,80 @@
         document.getElementById('saved-list').innerHTML = savedsToRender.map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text?linkify(s.text):'Image'}</div>`).join('');
         document.getElementById('gal-img-view').innerHTML = imagesForGallery.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
         document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
-    }
 
-    let firstLoadChat = true; 
-    onSnapshot(chatCol, (snap) => {
-        if (!currentUserRole) return; 
-
-        let tempAllMessages = [];
-        let tempAllImages = [];
-
-        snap.docChanges().forEach(c => { 
-            if (c.type === "added") {
-                if (!firstLoadChat && c.doc.data().user !== currentUserRole) notify(c.doc.data().user, c.doc.data().text);
-            }
-        });
-        
-        snap.forEach(d => { 
-            let data = { id: d.id, ...d.data() }; 
-            tempAllMessages.push(data); 
-            if (data.imageUrl) {
-                tempAllImages.push({url: data.imageUrl, caption: data.text || 'Image'});
-            }
-        });
-
-        allMessagesFromFirebase = tempAllMessages;
-        allImageUrlsAndCaptions = tempAllImages; 
-
-        renderChatDisplay(); 
-        
-        if (!currentSearchTerm && snap.docChanges().some(c => c.type === "added")) {
+        if (scrollToBottom && !currentSearchTerm) {
              container.scrollTop = container.scrollHeight;
         }
-        firstLoadChat = false;
+    }
+
+    // --- onAuthStateChanged Listener ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loginScreen.style.display = 'none';
+            document.getElementById('main-chat').style.display = 'flex';
+
+            const userEmailLower = user.email.toLowerCase();
+
+            if (userEmailLower === 'mitchell.beckner@gmail.com') {
+                currentUserRole = 'Husband';
+            } else if (userEmailLower === 'demetrybeckner@gmail.com') {
+                currentUserRole = 'Wife';
+            } else {
+                alert(`Unauthorized user: ${user.email}`);
+                signOut(auth);
+                return;
+            }
+            currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
+            updateMyStatus(true); // Set user as online
+
+            // Only subscribe to chat messages if not already subscribed and user is authenticated
+            if (!chatUnsubscribe) {
+                const chatColRef = collection(db, "messages");
+                chatUnsubscribe = onSnapshot(chatColRef, (snap) => {
+                    let tempAllMessages = [];
+                    let tempAllImages = [];
+                    let shouldScrollToBottom = false; // Flag for auto-scroll
+
+                    snap.docChanges().forEach(c => { 
+                        if (c.type === "added") {
+                            // Check if it's a new message and not from the current user, then notify
+                            if (!firstLoadChat && c.doc.data().user !== currentUserRole) {
+                                notify(c.doc.data().user, c.doc.data().text);
+                            }
+                            shouldScrollToBottom = true; // Mark for auto-scroll if any new message
+                        }
+                    });
+                    
+                    snap.forEach(d => { 
+                        let data = { id: d.id, ...d.data() }; 
+                        tempAllMessages.push(data); 
+                        if (data.imageUrl) {
+                            tempAllImages.push({url: data.imageUrl, caption: data.text || 'Image'});
+                        }
+                    });
+
+                    allMessagesFromFirebase = tempAllMessages;
+                    allImageUrlsAndCaptions = tempAllImages; 
+
+                    renderChatDisplay(shouldScrollToBottom); // Pass scroll flag
+                    
+                    firstLoadChat = false;
+                });
+            }
+        } else {
+            // User is signed out
+            loginScreen.style.display = 'flex';
+            document.getElementById('main-chat').style.display = 'none';
+            currentUserRole = null;
+            currentUserDisplay.innerText = '';
+            
+            // Unsubscribe from chat messages when user logs out
+            if (chatUnsubscribe) {
+                chatUnsubscribe();
+                chatUnsubscribe = null;
+            }
+            renderChatDisplay(); // Clear chat display for logged out state
+        }
     });
 
     window.react = async (id, e) => { if(!currentUserRole) return; updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 }); };
@@ -332,7 +378,7 @@
             window.cancelImagePreview(); 
         }
 
-        await addDoc(chatCol, { text: t, imageUrl: imageUrl, user: u, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r }); 
+        await addDoc(collection(db, "messages"), { text: t, imageUrl: imageUrl, user: u, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r }); 
     }
     document.getElementById('send-btn').onclick = send;
     input.onkeypress = (e) => { if(e.key === 'Enter') send(); };
@@ -376,7 +422,7 @@
     const mediaViewerCaption = document.getElementById('media-viewer-caption');
     const closeMediaViewerBtn = document.getElementById('close-media-viewer');
     const mediaViewerPrevBtn = document.getElementById('media-viewer-prev');
-    const mediaViewerNextBtn = document.getElementById('media-viewer-next');
+    const mediaViewerNextBtn = document = document.getElementById('media-viewer-next'); // Fixed typo
 
     let currentImageIndex = 0; 
 
@@ -432,42 +478,6 @@
         await signOut(auth);
     };
 
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // User is signed in
-            loginScreen.style.display = 'none';
-            document.getElementById('main-chat').style.display = 'flex';
-
-            console.log("Logged in user email:", user.email); // DIAGNOSTIC LINE
-
-            // Convert to lowercase for robust comparison
-            const userEmailLower = user.email.toLowerCase();
-
-            if (userEmailLower === 'mitchell.beckner@gmail.com') {
-                currentUserRole = 'Husband';
-            } else if (userEmailLower === 'demetrybeckner@gmail.com') {
-                currentUserRole = 'Wife';
-            } else {
-                alert(`Unauthorized user: ${user.email}`); // Show the email that was unauthorized
-                signOut(auth);
-                return;
-            }
-            currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
-            updateMyStatus(true); // Set user as online
-            renderChatDisplay(); // Render chat for the logged-in user
-        } else {
-            // User is signed out
-            loginScreen.style.display = 'flex';
-            document.getElementById('main-chat').style.display = 'none';
-            currentUserRole = null;
-            currentUserDisplay.innerText = '';
-            // Update online status to offline for the user that just logged out
-            // This needs to be done *before* currentUserRole is null, or it won't know which doc to update.
-            // Or, more robustly, store the last user's role somewhere, or check auth.currentUser
-            // onAuthStateChanged fires with user=null AFTER signOut completes.
-            // So, updateMyStatus will implicitly handle 'null' currentUserRole.
-        }
-    });
 </script>
 </body>
 </html>
