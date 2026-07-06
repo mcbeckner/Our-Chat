@@ -272,9 +272,10 @@
         document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
     }
 
-    let firstLoadChat = true; // Changed variable name to avoid conflict with `firstLoad` in onAuthStateChanged
+    let firstLoadChat = true; 
     onSnapshot(chatCol, (snap) => {
-        if (!currentUserRole) return; // Do not process chat messages if not authenticated
+        if (!currentUserRole) return; 
+
         let tempAllMessages = [];
         let tempAllImages = [];
 
@@ -318,7 +319,7 @@
         const t = input.value.trim(); 
         if (!t && !pendingImageFile) return; 
 
-        const u = currentUserRole; // Use authenticated user's role
+        const u = currentUserRole; 
         input.value = ""; 
         const r = replyingTo; 
         window.cancelReply();
@@ -437,32 +438,34 @@
             loginScreen.style.display = 'none';
             document.getElementById('main-chat').style.display = 'flex';
 
-            if (user.email === 'Mitchell.beckner@gmail.com') {
+            console.log("Logged in user email:", user.email); // DIAGNOSTIC LINE
+
+            // Convert to lowercase for robust comparison
+            const userEmailLower = user.email.toLowerCase();
+
+            if (userEmailLower === 'mitchell.beckner@gmail.com') {
                 currentUserRole = 'Husband';
-            } else if (user.email === 'Demetrybeckner@gmail.com') {
+            } else if (userEmailLower === 'demetrybeckner@gmail.com') {
                 currentUserRole = 'Wife';
             } else {
-                // Handle unauthorized user trying to login (optional)
-                alert("Unauthorized user.");
+                alert(`Unauthorized user: ${user.email}`); // Show the email that was unauthorized
                 signOut(auth);
                 return;
             }
             currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
             updateMyStatus(true); // Set user as online
             renderChatDisplay(); // Render chat for the logged-in user
-            
-            // Re-initialize snapshot listeners if they were off or need current user context
-            // The existing onSnapshot listeners are global and will re-run when auth changes.
         } else {
             // User is signed out
             loginScreen.style.display = 'flex';
             document.getElementById('main-chat').style.display = 'none';
             currentUserRole = null;
             currentUserDisplay.innerText = '';
-            // Clear any active typing/online status for this user
-            if (auth.currentUser) { // If a user was just logged out
-                setDoc(doc(db, "status", auth.currentUser.email === 'Mitchell.beckner@gmail.com' ? 'Husband' : 'Wife'), { online: false, lastSeen: serverTimestamp() }, { merge: true });
-            }
+            // Update online status to offline for the user that just logged out
+            // This needs to be done *before* currentUserRole is null, or it won't know which doc to update.
+            // Or, more robustly, store the last user's role somewhere, or check auth.currentUser
+            // onAuthStateChanged fires with user=null AFTER signOut completes.
+            // So, updateMyStatus will implicitly handle 'null' currentUserRole.
         }
     });
 </script>
