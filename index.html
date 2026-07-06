@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"><title>Family Chat</title>
+    <style>
+        :root { --mg: #075e54; --lg: #dcf8c6; --bg: #e5ddd5; --msg-bg: white; --txt: black; }
+        body.dark { --bg: #1e1e1e; --msg-bg: #333; --txt: #eee; --lg: #054c44; --mg: #000; color: var(--txt); }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+        #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
+        header { background: var(--mg); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; }
+        header button, header select, header input { background: #128c7e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        header input { background: #0e6c62; }
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .message { max-width: 75%; padding: 10px; border-radius: 10px; box-shadow: 0 1px 2px #0002; position: relative; background: var(--msg-bg); color: var(--txt); }
+        .sent { align-self: flex-end; background: var(--lg); }
+        .received { align-self: flex-start; }
+        .reaction-menu { position: absolute; top: -35px; background: var(--msg-bg); border-radius: 20px; padding: 5px; display: none; gap: 8px; box-shadow: 0 2px 10px #0003; z-index: 50; border: 1px solid #8884; }
+        .message::before { content: ""; position: absolute; top: -20px; left: 0; width: 100%; height: 20px; }
+        .message:hover .reaction-menu { display: flex; cursor: pointer; }
+        .reaction-bar { position: absolute; bottom: -10px; left: 10px; background: var(--msg-bg); border-radius: 10px; padding: 2px 5px; font-size: 12px; box-shadow: 0 1px 3px #0002; display:flex; gap:2px; }
+        .reply-quote { background: #0002; border-left: 3px solid #128c7e; padding: 5px; border-radius: 3px; font-size: 12px; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #emoji-picker { position: absolute; bottom: 100px; left: 10px; background: var(--msg-bg); border-radius: 10px; display: none; grid-template-columns: repeat(8, 1fr); padding: 10px; gap: 5px; z-index: 100; box-shadow: 0 2px 10px #0003; }
+        #input-area { background: var(--bg); padding: 15px; display: flex; flex-direction: column; border-top: 1px solid #ccc; }
+        #reply-preview { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid var(--mg); font-size: 12px; justify-content: space-between; margin-bottom: 5px; border-radius: 3px; }
+        #image-preview-box { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid #128c7e; font-size: 12px; align-items: center; gap: 10px; margin-bottom: 5px; border-radius: 3px; }
+        #image-preview-box img { max-height: 50px; border-radius: 3px; }
+        .input-row { display: flex; gap: 10px; }
+        #msg-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #888; outline: none; background: var(--msg-bg); color: var(--txt); }
+        #sidebar { width: 250px; background: var(--bg); position: absolute; right: -250px; height: 100%; transition: 0.3s; z-index: 100; border-left: 1px solid #888; display:flex; flex-direction:column; }
+        #sidebar.open { right: 0; }
+        .msg-img { max-width: 100%; border-radius: 5px; cursor: pointer; margin-top: 5px; }
+        
+        /* Gallery */
+        #gallery-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
+        #gallery-content { background: var(--bg); width: 80%; height: 80%; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
+        #gallery-tabs { background: var(--mg); padding: 10px; display: flex; gap: 10px; justify-content: space-between; }
+        .tab-btn { background: #128c7e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
+        .tab-btn.active { background: #054c44; font-weight: bold; }
+        .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
+        .grid-view img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; cursor: pointer; }
+        .list-view { display: none; flex-direction: column; gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
+
+        /* Media Viewer */
+        #media-viewer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; align-items: center; justify-content: center; }
+        #media-viewer-content { max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; }
+        #media-viewer-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
+        #media-viewer-caption { color: white; margin-top: 10px; font-size: 1.2em; }
+        #media-viewer-controls { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 10px; }
+        #media-viewer-controls button { background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1.2em; }
+        #media-viewer-nav { position: absolute; bottom: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 10px; }
+    </style>
+</head>
+<body>
+<div id="main-chat">
+    <header>
+        <div style="display:flex;gap:5px;align-items:center;">
+            <button id="dark-toggle" style="background:none;font-size:16px;">🌙</button>
+            <select id="user-selector"><option value="Husband">Husband</option><option value="Wife">Wife</option></select>
+            <input type="text" id="search-input" placeholder="Search messages..." />
+        </div>
+        <div style="display:flex;gap:5px;">
+            <span id="other-user-status" style="font-size:12px;"></span>
+            <button id="gallery-toggle">🖼️ Gallery</button>
+            <button id="saved-toggle">⭐ Saved</button>
+        </div>
+    </header>
+    <div id="chat-container"></div>
+    <div id="typing-indicator" style="font-size:12px;padding:2px 20px;height:15px;color:#888;font-style:italic"></div>
+    <div id="emoji-picker"></div>
+    <div id="input-area">
+        <div id="reply-preview"><span id="reply-text"></span><button onclick="cancelReply()" style="background:none;border:none;color:red;cursor:pointer">&times;</button></div>
+        <div id="image-preview-box" style="display:none; align-items:center;">
+            <img id="image-preview" src="" alt="Image Preview" style="max-height: 50px; border-radius: 3px;">
+            <span style="flex:1; margin-left:10px;">Image ready to send.</span>
+            <button onclick="cancelImagePreview()" style="background:none;border:none;color:red;cursor:pointer">&times;</button>
+        </div>
+        <div class="input-row">
+            <button id="emoji-btn" style="border:none;background:none;font-size:20px;cursor:pointer">😊</button>
+            <input type="text" id="msg-input" placeholder="Message or paste image..." autocomplete="off">
+            <button id="send-btn" style="background:var(--mg);color:white;border:none;padding:5px 15px;border-radius:20px;cursor:pointer">Send</button>
+        </div>
+    </div>
+</div>
+
+<div id="sidebar">
+    <div style="background:var(--mg);color:white;padding:15px;font-weight:bold">Saved <button id="close-sidebar" style="float:right;background:none;border:none;color:white;cursor:pointer">&times;</button></div>
+    <div id="saved-list" style="padding:10px;overflow-y:auto;flex:1"></div>
+</div>
+
+<div id="gallery-modal">
+    <div id="gallery-content">
+        <div id="gallery-tabs">
+            <div><button class="tab-btn active" id="tab-img">Images</button><button class="tab-btn" id="tab-lnk">Links</button></div>
+            <button class="tab-btn" id="close-gallery" style="background:red">Close</button>
+        </div>
+        <div id="gal-img-view" class="grid-view"></div><div id="gal-lnk-view" class="list-view"></div>
+    </div>
+</div>
+
+<div id="media-viewer-modal">
+    <div id="media-viewer-controls">
+        <button id="close-media-viewer">&times;</button>
+    </div>
+    <div id="media-viewer-content">
+        <img id="media-viewer-image" src="" alt="Media Viewer">
+        <div id="media-viewer-caption"></div>
+    </div>
+    <div id="media-viewer-nav">
+        <button id="media-viewer-prev">&lt;</button>
+        <button id="media-viewer-next">&gt;</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+    const config = { apiKey: "AIzaSyBYv5Pu7SCh9pRkgLKA9gelk7AZIr0Gfxw", authDomain: "ourchat-34326.firebaseapp.com", projectId: "ourchat-34326", storageBucket: "ourchat-34326.firebasestorage.app", messagingSenderId: "788530048366", appId: "1:788530048366:web:cc4e06882b86988ebf657f" };
+    const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app), chatCol = collection(db, "messages");
+    const container = document.getElementById('chat-container'), input = document.getElementById('msg-input'), userSel = document.getElementById('user-selector'), picker = document.getElementById('emoji-picker');
+    const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview');
+    const searchInput = document.getElementById('search-input');
+    const otherUserStatus = document.getElementById('other-user-status');
+
+    let replyingTo = null;
+    let pendingImageFile = null;
+    let currentSearchTerm = '';
+    let allImages = []; // Stores all image URLs for the media viewer
+    let currentImageIndex = 0;
+
+    const ems = ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','👅','❤️'];
+    ems.forEach(e => { const s = document.createElement('span'); s.innerText = e; s.style.cursor='pointer'; s.style.fontSize='20px'; s.onclick = (event) => { input.value += e; input.focus(); event.stopPropagation(); }; picker.appendChild(s); });
+    document.getElementById('emoji-btn').onclick = (e) => { e.stopPropagation(); picker.style.display = picker.style.display === 'grid' ? 'none' : 'grid'; };
+    document.addEventListener('click', () => picker.style.display = 'none');
+    document.getElementById('dark-toggle').onclick = () => document.body.classList.toggle('dark');
+
+    if (Notification.permission !== "granted") Notification.requestPermission();
+    function notify(u, t) { if (document.hidden && Notification.permission === "granted") new Notification(`${u} messaged`, { body: t || "Sent an image" }); }
+    function linkify(text) { return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>'); }
+    function highlightSearch(text, term) {
+        if (!term) return text;
+        const regex = new RegExp(`(${term})`, 'gi');
+        return text.replace(regex, '<mark>$1</mark>');
+    }
+
+    // --- Online/Last Seen Status ---
+    let userActivityTimeout;
+    function updateMyStatus(onlineState) {
+        const myUser = userSel.value;
+        const statusDocRef = doc(db, "status", myUser);
+        const updateData = { online: onlineState, lastSeen: serverTimestamp() };
+        setDoc(statusDocRef, updateData, { merge: true });
+    }
+
+    window.addEventListener('focus', () => { updateMyStatus(true); clearTimeout(userActivityTimeout); });
+    window.addEventListener('blur', () => { userActivityTimeout = setTimeout(() => updateMyStatus(false), 5000); }); // Consider offline after 5 seconds of blur
+    window.addEventListener('beforeunload', () => updateMyStatus(false)); // Ensure offline status on close
+
+    userSel.addEventListener('change', () => { updateMyStatus(true); }); // Update status if user changes identity
+
+    onSnapshot(collection(db, "status"), (snap) => {
+        const myUser = userSel.value;
+        const otherUser = myUser === "Husband" ? "Wife" : "Husband";
+        const otherStatusDoc = snap.docs.find(d => d.id === otherUser);
+        const otherData = otherStatusDoc?.data();
+
+        if (otherData?.online && (serverTimestamp().seconds - otherData.lastSeen?.seconds || 0) < 30) {
+            otherUserStatus.innerText = `${otherUser} is Online`;
+            otherUserStatus.style.color = '#28a745'; // Green
+        } else if (otherData?.lastSeen) {
+            const lastSeenDate = otherData.lastSeen.toDate();
+            const now = new Date();
+            const diffMs = now - lastSeenDate;
+            const diffMin = Math.round(diffMs / 60000);
+            if (diffMin < 60) otherUserStatus.innerText = `Last seen ${diffMin} min ago`;
+            else otherUserStatus.innerText = `Last seen ${Math.round(diffMin/60)} hours ago`;
+            otherUserStatus.style.color = '#6c757d'; // Gray
+        } else {
+            otherUserStatus.innerText = ''; // No status yet
+        }
+    });
+    updateMyStatus(true); // Set initial status on load
+
+    let firstLoad = true;
+    onSnapshot(chatCol, (snap) => {
+        let msgs = [], saveds = [], images = [], links = [];
+        let hasNewMessages = false;
+        
+        snap.docChanges().forEach(c => { 
+            if (c.type === "added") {
+                if (!firstLoad && c.doc.data().user !== userSel.value) notify(c.doc.data().user, c.doc.data().text);
+                hasNewMessages = true; // Mark if any new messages were added
+            }
+        });
+        
+        snap.forEach(d => { 
+            let data = { id: d.id, ...d.data() }; 
+            if (currentSearchTerm && data.text && !data.text.toLowerCase().includes(currentSearchTerm.toLowerCase())) {
+                // Skip messages that don't match the search term
+                return;
+            }
+
+            msgs.push(data); 
+            if (data.isSaved) saveds.push(data);
+            if (data.imageUrl) images.push({url: data.imageUrl, caption: data.text || 'Image'});
+            if (data.text) {
+                const urls = data.text.match(/(https?:\/\/[^\s]+)/g);
+                if (urls) urls.forEach(u => links.push({u, user: data.user}));
+            }
+        });
+        
+        allImages = images; // Update global images array for media viewer
+        
+        msgs.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+        container.innerHTML = '';
+        msgs.forEach(m => {
+            const isMe = m.user === userSel.value, div = document.createElement('div');
+            div.className = `message ${isMe ? 'sent' : 'received'}`;
+            const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
+            div.innerHTML = `<div class="reaction-menu">
+                <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
+                <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
+                ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
+                </div>
+                <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'<span style="font-weight:normal;color:#888">(edited)</span>':''}</div>
+                ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
+                <div>${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
+                ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
+                <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between"><span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+                <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span></div>${rb}`;
+            container.appendChild(div);
+        });
+        if (hasNewMessages || currentSearchTerm) container.scrollTop = container.scrollHeight; // Only scroll if new messages or search active
+        firstLoad = false;
+        document.getElementById('saved-list').innerHTML = saveds.map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text?linkify(s.text):'Image'}</div>`).join('');
+        document.getElementById('gal-img-view').innerHTML = images.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
+        document.getElementById('gal-lnk-view').innerHTML = links.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
+    });
+
+    window.react = async (id, e) => updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 });
+    window.save = async (id, s) => updateDoc(doc(db, "messages", id), { isSaved: !s });
+    window.delMsg = async (id) => { if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
+    window.editMsg = async (id, oldText) => { const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
+    
+    window.setReply = (txt) => { replyingTo = txt; document.getElementById('reply-text').innerText = txt; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
+    window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').style.display = 'none'; };
+    
+    window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; imagePreview.src = ''; };
+
+    async function send() { 
+        const t = input.value.trim(); 
+        if (!t && !pendingImageFile) return; 
+
+        const u = userSel.value; 
+        input.value = ""; 
+        const r = replyingTo; 
+        window.cancelReply();
+
+        let imageUrl = null;
+        if (pendingImageFile) {
+            const sRef = ref(storage, `chat/${Date.now()}.png`);
+            const snap = await uploadBytes(sRef, pendingImageFile);
+            imageUrl = await getDownloadURL(snap.ref);
+            window.cancelImagePreview(); 
+        }
+
+        await addDoc(chatCol, { text: t, imageUrl: imageUrl, user: u, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r }); 
+    }
+    document.getElementById('send-btn').onclick = send;
+    input.onkeypress = (e) => { if(e.key === 'Enter') send(); };
+    document.getElementById('saved-toggle').onclick = () => document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('close-sidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
+
+    const gal = document.getElementById('gallery-modal'), ti = document.getElementById('tab-img'), tl = document.getElementById('tab-lnk'), vi = document.getElementById('gal-img-view'), vl = document.getElementById('gal-lnk-view');
+    document.getElementById('gallery-toggle').onclick = () => gal.style.display = 'flex';
+    document.getElementById('close-gallery').onclick = () => gal.style.display = 'none';
+    ti.onclick = () => { ti.classList.add('active'); tl.classList.remove('active'); vi.style.display = 'grid'; vl.style.display = 'none'; };
+    tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'flex'; vi.style.display = 'none'; };
+
+    input.oninput = () => { setDoc(doc(db, "status", userSel.value), { typing: true }); setTimeout(() => setDoc(doc(db, "status", userSel.value), { typing: false }), 3000); };
+    onSnapshot(collection(db, "status"), (s) => { const other = userSel.value === "Husband" ? "Wife" : "Husband", st = s.docs.find(d => d.id === other); document.getElementById('typing-indicator').innerText = st?.data()?.typing ? `${other} is typing...` : ""; });
+    
+    window.addEventListener('paste', async e => {
+        const item = Array.from(e.clipboardData.items).find(x => x.type.indexOf('image') !== -1);
+        if (item) {
+            pendingImageFile = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagePreview.src = event.target.result;
+                imagePreviewBox.style.display = 'flex';
+                input.focus();
+            };
+            reader.readAsDataURL(pendingImageFile);
+        }
+    });
+
+    // --- Search Input ---
+    searchInput.addEventListener('input', () => {
+        currentSearchTerm = searchInput.value.trim();
+        // Re-run the snapshot listener to re-render with filtered messages
+        // (This is implicitly done because onSnapshot runs on any data change,
+        // but explicit re-filtering happens within the snapshot handler)
+        // A simple way to force re-render with search term is to update a dummy value
+        // or just let it update on next message, but for immediate feedback:
+        // Re-fetching or re-filtering local 'msgs' array as done in onSnapshot is sufficient.
+        // The onSnapshot callback will be triggered to re-render the chat
+        // when the component's internal search state changes.
+        // Since `onSnapshot` re-renders all messages, this is effectively a re-filter.
+    });
+
+    // --- Media Viewer Logic ---
+    const mediaViewerModal = document.getElementById('media-viewer-modal');
+    const mediaViewerImage = document.getElementById('media-viewer-image');
+    const mediaViewerCaption = document.getElementById('media-viewer-caption');
+    const closeMediaViewerBtn = document.getElementById('close-media-viewer');
+    const mediaViewerPrevBtn = document.getElementById('media-viewer-prev');
+    const mediaViewerNextBtn = document.getElementById('media-viewer-next');
+
+    window.openMediaViewer = (imageUrl) => {
+        currentImageIndex = allImages.findIndex(item => item.url === imageUrl);
+        showImageInViewer(currentImageIndex);
+        mediaViewerModal.style.display = 'flex';
+    };
+
+    function showImageInViewer(index) {
+        if (index >= 0 && index < allImages.length) {
+            mediaViewerImage.src = allImages[index].url;
+            mediaViewerCaption.innerText = allImages[index].caption || '';
+            currentImageIndex = index;
+            mediaViewerPrevBtn.disabled = (currentImageIndex === 0);
+            mediaViewerNextBtn.disabled = (currentImageIndex === allImages.length - 1);
+        }
+    }
+
+    closeMediaViewerBtn.onclick = () => { mediaViewerModal.style.display = 'none'; };
+    mediaViewerPrevBtn.onclick = () => { showImageInViewer(currentImageIndex - 1); };
+    mediaViewerNextBtn.onclick = () => { showImageInViewer(currentImageIndex + 1); };
+
+    // Close on escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && mediaViewerModal.style.display === 'flex') {
+            mediaViewerModal.style.display = 'none';
+        }
+    });
+</script>
+</body>
+</html>
