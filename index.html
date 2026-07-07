@@ -14,12 +14,14 @@
         #login-error { color: red; font-size: 0.9em; text-align: center; }
 
         #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
-        header { background: var(--mg); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px; }
+        header { background: var(--mg); color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center; z-index: 10; }
         header button, header select, header input { background: #128c7e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
-        header input { background: #0e6c62; color: white; }
         
-        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: auto; }
-        .load-more-btn { align-self: center; background: var(--mg); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; margin-bottom: 10px; font-size: 0.8em; opacity: 0.8; }
+        /* THE FIX: flex-direction: column-reverse pins content to the bottom natively */
+        #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column-reverse; gap: 15px; }
+        #chat-list { display: flex; flex-direction: column; gap: 15px; width: 100%; }
+        
+        .load-more-btn { align-self: center; background: var(--mg); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; margin: 10px 0; font-size: 0.8em; }
         
         .message { max-width: 75%; padding: 10px; border-radius: 10px; box-shadow: 0 1px 2px #0002; position: relative; background: var(--msg-bg); color: var(--txt); }
         .message.sending { opacity: 0.5; }
@@ -33,12 +35,11 @@
         .reaction-bar { position: absolute; bottom: -10px; left: 10px; background: var(--msg-bg); border-radius: 10px; padding: 2px 5px; font-size: 12px; box-shadow: 0 1px 3px #0002; display:flex; gap:2px; }
         .reply-quote { background: #0002; border-left: 3px solid #128c7e; padding: 5px; border-radius: 3px; font-size: 12px; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
-        .link-preview { background: rgba(0,0,0,0.05); border-radius: 5px; padding: 8px; margin-top: 5px; border-left: 3px solid var(--mg); font-size: 0.9em; display: flex; flex-direction: column; }
-        .link-preview a { color: var(--mg); text-decoration: none; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-preview { background: rgba(0,0,0,0.05); border-radius: 5px; padding: 8px; margin-top: 5px; border-left: 3px solid var(--mg); font-size: 0.9em; }
+        .link-preview a { color: var(--mg); text-decoration: none; font-weight: bold; }
 
-        #input-area { background: var(--bg); padding: 15px; display: flex; flex-direction: column; border-top: 1px solid #ccc; }
-        #reply-preview { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid var(--mg); font-size: 12px; justify-content: space-between; margin-bottom: 5px; border-radius: 3px; }
-        #image-preview-box { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid #128c7e; font-size: 12px; align-items: center; gap: 10px; margin-bottom: 5px; border-radius: 3px; }
+        #input-area { background: var(--bg); padding: 15px; display: flex; flex-direction: column; border-top: 1px solid #ccc; z-index: 10; }
+        #reply-preview, #image-preview-box { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid var(--mg); font-size: 12px; margin-bottom: 5px; border-radius: 3px; }
         #image-preview-box img { max-height: 50px; border-radius: 3px; }
         #msg-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #888; outline: none; background: var(--msg-bg); color: var(--txt); }
         
@@ -51,9 +52,9 @@
         #gallery-tabs { background: var(--mg); padding: 10px; display: flex; gap: 10px; justify-content: space-between; }
         .tab-btn { background: #128c7e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; }
         .tab-btn.active { background: #054c44; font-weight: bold; }
-        .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
-        .grid-view img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; cursor: pointer; }
-        .list-view { display: none; flex-direction: column; gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
+        .grid-view, .list-view { padding: 15px; overflow-y: auto; flex: 1; }
+        .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+        .grid-view img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; }
 
         #media-viewer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; align-items: center; justify-content: center; }
         #media-viewer-content { max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; }
@@ -70,7 +71,7 @@
         <input type="email" id="login-email" placeholder="Email" />
         <input type="password" id="login-password" placeholder="Password" />
         <button id="login-btn">Login</button>
-        <button id="signup-btn" style="background:#5cb85c;">Sign Up (First Time Only)</button>
+        <button id="signup-btn" style="background:#5cb85c;">Sign Up</button>
         <p id="login-error"></p>
     </div>
 </div>
@@ -78,9 +79,9 @@
 <div id="main-chat" style="display:none;">
     <header>
         <div style="display:flex;gap:5px;align-items:center;">
-            <button id="dark-toggle" style="background:none;font-size:16px;">🌙</button>
+            <button id="dark-toggle">🌙</button>
             <span id="current-user-display" style="font-weight:bold;"></span>
-            <input type="text" id="search-input" placeholder="Search messages..." />
+            <input type="text" id="search-input" placeholder="Search..." />
         </div>
         <div style="display:flex;gap:5px;">
             <span id="other-user-status" style="font-size:12px;"></span>
@@ -89,26 +90,23 @@
             <button id="logout-btn" style="background:red;">Logout</button>
         </div>
     </header>
-    <div id="chat-container"></div>
-    <div id="typing-indicator" style="font-size:12px;padding:2px 20px;height:15px;color:#888;font-style:italic"></div>
-    <div id="emoji-picker" style="position: absolute; bottom: 100px; left: 10px; background: var(--msg-bg); border-radius: 10px; display: none; grid-template-columns: repeat(8, 1fr); padding: 10px; gap: 5px; z-index: 100; box-shadow: 0 2px 10px #0003;"></div>
+    <div id="chat-container">
+        <!-- Flex Column-Reverse makes this div the bottom -->
+        <div id="chat-list"></div>
+    </div>
     <div id="input-area">
-        <div id="reply-preview"><span id="reply-text"></span><button onclick="cancelReply()" style="background:none;border:none;color:red;cursor:pointer">&times;</button></div>
-        <div id="image-preview-box">
-            <img id="image-preview" src="" alt="Image Preview">
-            <span style="flex:1; margin-left:10px;">Image ready to send.</span>
-            <button onclick="cancelImagePreview()" style="background:none;border:none;color:red;cursor:pointer">&times;</button>
-        </div>
+        <div id="reply-preview"><span id="reply-text"></span><button onclick="cancelReply()">&times;</button></div>
+        <div id="image-preview-box"><img id="image-preview" src=""><button onclick="cancelImagePreview()">&times;</button></div>
         <div style="display:flex; gap:10px;">
-            <button id="emoji-btn" style="border:none;background:none;font-size:20px;cursor:pointer">😊</button>
-            <input type="text" id="msg-input" placeholder="Message or paste image..." autocomplete="off">
-            <button id="send-btn" style="background:var(--mg);color:white;border:none;padding:5px 15px;border-radius:20px;cursor:pointer">Send</button>
+            <button id="emoji-btn">😊</button>
+            <input type="text" id="msg-input" placeholder="Message..." autocomplete="off">
+            <button id="send-btn">Send</button>
         </div>
     </div>
 </div>
 
 <div id="sidebar">
-    <div style="background:var(--mg);color:white;padding:15px;font-weight:bold">Saved <button id="close-sidebar" style="float:right;background:none;border:none;color:white;cursor:pointer">&times;</button></div>
+    <div style="background:var(--mg);color:white;padding:15px;font-weight:bold">Saved <button id="close-sidebar" style="float:right;">&times;</button></div>
     <div id="saved-list" style="padding:10px;overflow-y:auto;flex:1"></div>
 </div>
 
@@ -116,15 +114,15 @@
     <div id="gallery-content">
         <div id="gallery-tabs">
             <div><button class="tab-btn active" id="tab-img">Images</button><button class="tab-btn" id="tab-lnk">Links</button></div>
-            <button class="tab-btn" id="close-gallery" style="background:red">Close</button>
+            <button id="close-gallery" style="background:red; color:white;">Close</button>
         </div>
-        <div id="gal-img-view" class="grid-view"></div><div id="gal-lnk-view" class="list-view"></div>
+        <div id="gal-img-view" class="grid-view"></div><div id="gal-lnk-view" class="list-view" style="display:none;"></div>
     </div>
 </div>
 
 <div id="media-viewer-modal">
-    <div id="media-viewer-controls" style="position:absolute; top:10px; right:10px;"><button id="close-media-viewer" style="background:none; border:none; color:white; font-size:2em; cursor:pointer;">&times;</button></div>
-    <div id="media-viewer-content"><img id="media-viewer-image" src=""><div id="media-viewer-caption" style="color:white; margin-top:10px;"></div></div>
+    <div id="media-viewer-controls" style="position:absolute; top:10px; right:10px;"><button id="close-media-viewer" style="color:white; font-size:2em;">&times;</button></div>
+    <div id="media-viewer-content"><img id="media-viewer-image" src=""><div id="media-viewer-caption" style="color:white;"></div></div>
     <div id="media-viewer-nav"><button id="media-viewer-prev">&lt;</button><button id="media-viewer-next">&gt;</button></div>
 </div>
 
@@ -137,44 +135,31 @@
     const config = { apiKey: "AIzaSyBYv5Pu7SCh9pRkgLKA9gelk7AZIr0Gfxw", authDomain: "ourchat-34326.firebaseapp.com", projectId: "ourchat-34326", storageBucket: "ourchat-34326.firebasestorage.app", messagingSenderId: "788530048366", appId: "1:788530048366:web:cc4e06882b86988ebf657f" };
     const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app), auth = getAuth(app);
 
-    const container = document.getElementById('chat-container'), input = document.getElementById('msg-input'), picker = document.getElementById('emoji-picker');
-    const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview'), searchInput = document.getElementById('search-input');
+    const chatList = document.getElementById('chat-list'), input = document.getElementById('msg-input');
+    const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview');
     const otherUserStatus = document.getElementById('other-user-status'), currentUserDisplay = document.getElementById('current-user-display');
     const loginScreen = document.getElementById('login-screen'), loginEmail = document.getElementById('login-email'), loginPassword = document.getElementById('login-password');
-    const loginBtn = document.getElementById('login-btn'), signupBtn = document.getElementById('signup-btn'), loginError = document.getElementById('login-error'), logoutBtn = document.getElementById('logout-btn');
+    const loginBtn = document.getElementById('login-btn'), signupBtn = document.getElementById('signup-btn'), loginError = document.getElementById('login-error');
 
-    let currentUserRole = null, replyingTo = null, pendingImageFile = null, currentSearchTerm = '', allImageUrlsAndCaptions = [], chatUnsubscribe = null, firstLoadChat = true, msgLimit = 25;
+    let currentUserRole = null, replyingTo = null, pendingImageFile = null, allImageUrlsAndCaptions = [], chatUnsubscribe = null, msgLimit = 25;
 
-    const ems = ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','👅','❤️'];
-    ems.forEach(e => { const s = document.createElement('span'); s.innerText = e; s.style.cursor='pointer'; s.style.fontSize='20px'; s.onclick = (event) => { input.value += e; input.focus(); event.stopPropagation(); }; picker.appendChild(s); });
-    document.getElementById('emoji-btn').onclick = (e) => { e.stopPropagation(); picker.style.display = picker.style.display === 'grid' ? 'none' : 'grid'; };
-    document.addEventListener('click', () => picker.style.display = 'none');
-    document.getElementById('dark-toggle').onclick = () => document.body.classList.toggle('dark');
-
-    function notify(u, t) { if (document.hidden && Notification.permission === "granted") new Notification(`${u} messaged`, { body: t || "Sent an image" }); }
     function linkify(text) { return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>'); }
-    function highlightSearch(text, term) { if (!term) return text; const regex = new RegExp(`(${term})`, 'gi'); return text.replace(regex, '<span class="search-highlight">$1</span>'); }
-
     function getLinkPreview(text) {
         const urlMatch = text.match(/(https?:\/\/[^\s]+)/g);
         if (!urlMatch) return "";
-        const url = urlMatch[0];
-        try { const domain = new URL(url).hostname; return `<div class="link-preview"><a href="${url}" target="_blank">${domain}</a></div>`; } catch(e) { return ""; }
-    }
-
-    function scrollChatToBottom() { setTimeout(() => { container.scrollTo({ top: container.scrollHeight, behavior: firstLoadChat ? 'auto' : 'smooth' }); }, 50); }
-
-    function updateMyStatus(onlineState) {
-        if (!currentUserRole) return;
-        setDoc(doc(db, "status", currentUserRole), { online: onlineState, lastSeen: serverTimestamp() }, { merge: true });
+        try { const domain = new URL(urlMatch[0]).hostname; return `<div class="link-preview"><a href="${urlMatch[0]}" target="_blank">${domain}</a></div>`; } catch(e) { return ""; }
     }
 
     onSnapshot(collection(db, "status"), (snap) => {
         if (!currentUserRole) return;
-        const otherUserRole = currentUserRole === "Husband" ? "Wife" : "Husband";
-        const otherData = snap.docs.find(d => d.id === otherUserRole)?.data();
-        if (otherData?.online) { otherUserStatus.innerText = `${otherUserRole} is Online`; otherUserStatus.style.color = '#28a745'; document.querySelectorAll('.receipt').forEach(r => r.style.color = '#34b7f1'); }
-        else if (otherData?.lastSeen) { otherUserStatus.innerText = `Last seen ${Math.round((new Date() - otherData.lastSeen.toDate())/60000)}m ago`; otherUserStatus.style.color = '#6c757d'; }
+        const otherRole = currentUserRole === "Husband" ? "Wife" : "Husband";
+        const data = snap.docs.find(d => d.id === otherRole)?.data();
+        if (data?.online) { 
+            otherUserStatus.innerText = `${otherRole} Online`; otherUserStatus.style.color = '#28a745'; 
+            document.querySelectorAll('.receipt').forEach(r => r.style.color = '#34b7f1');
+        } else if (data?.lastSeen) {
+            otherUserStatus.innerText = `Seen ${Math.round((new Date() - data.lastSeen.toDate())/60000)}m ago`; otherUserStatus.style.color = '#6c757d';
+        }
     });
 
     function createMessageElement(m, isSending = false) {
@@ -188,9 +173,9 @@
             <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
             ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
         </div>
-        <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'(edited)':''}</div>
+        <div style="font-size:10px;font-weight:bold">${m.user}</div>
         ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
-        <div class="msg-body">${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
+        <div class="msg-body">${m.text ? linkify(m.text) : ""}</div>
         ${m.text ? getLinkPreview(m.text) : ""}
         ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
         <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between;align-items:center;">
@@ -204,21 +189,14 @@
         if (chatUnsubscribe) chatUnsubscribe();
         const q = query(collection(db, "messages"), orderBy("createdAt", "asc"), limitToLast(msgLimit));
         chatUnsubscribe = onSnapshot(q, (snap) => {
-            const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
             let tempImgs = [], tempLnks = [];
-
             snap.docChanges().forEach(c => {
                 const m = { id: c.doc.id, ...c.doc.data() };
                 if (c.type === "added") {
                     if (m.user === currentUserRole) document.querySelectorAll('.message.sending').forEach(el => el.remove());
-                    if (!document.getElementById(`msg-${m.id}`)) {
-                        const el = createMessageElement(m);
-                        if (firstLoadChat || isAtBottom || m.user === currentUserRole) container.appendChild(el);
-                        else container.prepend(el);
-                    }
-                    if (!firstLoadChat && m.user !== currentUserRole) notify(m.user, m.text);
+                    if (!document.getElementById(`msg-${m.id}`)) chatList.appendChild(createMessageElement(m));
                 }
-                if (c.type === "modified") { const ex = document.getElementById(`msg-${m.id}`); if (ex) container.replaceChild(createMessageElement(m), ex); }
+                if (c.type === "modified") { const ex = document.getElementById(`msg-${m.id}`); if (ex) chatList.replaceChild(createMessageElement(m), ex); }
                 if (c.type === "removed") { const ex = document.getElementById(`msg-${m.id}`); if (ex) ex.remove(); }
             });
 
@@ -229,15 +207,13 @@
             });
             allImageUrlsAndCaptions = tempImgs.map(url => ({url, caption:""}));
             document.getElementById('gal-img-view').innerHTML = tempImgs.map(url => `<img src="${url}" onclick="openMediaViewer('${url}')">`).join('');
-            document.getElementById('gal-lnk-view').innerHTML = tempLnks.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
+            document.getElementById('gal-lnk-view').innerHTML = tempLnks.map(l => `<div style="background:#0001;padding:10px;margin-bottom:5px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
             document.getElementById('saved-list').innerHTML = all.filter(m => m.isSaved).map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text || 'Image'}</div>`).join('');
 
             if (snap.docs.length >= msgLimit && !document.getElementById('load-more')) {
                 const btn = document.createElement('button'); btn.id='load-more'; btn.className='load-more-btn'; btn.innerText='Load Older';
-                btn.onclick = () => { msgLimit += 25; startChatListener(); btn.remove(); }; container.prepend(btn);
+                btn.onclick = () => { msgLimit += 25; startChatListener(); btn.remove(); }; chatList.prepend(btn);
             }
-            if (isAtBottom || firstLoadChat) scrollChatToBottom();
-            firstLoadChat = false;
         });
     }
 
@@ -246,31 +222,30 @@
             loginScreen.style.display = 'none'; document.getElementById('main-chat').style.display = 'flex';
             const email = user.email.toLowerCase();
             currentUserRole = (email === 'mitchell.beckner@gmail.com') ? 'Husband' : (email === 'demetrybeckner@gmail.com') ? 'Wife' : null;
-            if (!currentUserRole) { signOut(auth); return; }
-            currentUserDisplay.innerText = currentUserRole; updateMyStatus(true); startChatListener();
+            currentUserDisplay.innerText = currentUserRole;
+            setDoc(doc(db, "status", currentUserRole), { online: true, lastSeen: serverTimestamp() }, { merge: true });
+            startChatListener();
         } else {
             loginScreen.style.display = 'flex'; document.getElementById('main-chat').style.display = 'none';
-            if (chatUnsubscribe) chatUnsubscribe(); container.innerHTML = ''; firstLoadChat = true;
         }
     });
 
     window.react = (id, e) => updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 });
     window.save = (id, s) => updateDoc(doc(db, "messages", id), { isSaved: !s });
     window.delMsg = (id) => { if(confirm("Delete?")) deleteDoc(doc(db, "messages", id)); };
-    window.editMsg = (id, old) => { const nt = prompt("Edit:", old); if(nt && nt!==old) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
-    window.setReply = (t) => { replyingTo = t; document.getElementById('reply-text').innerText = t; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
+    window.editMsg = (id, old) => { const nt = prompt("Edit:", old); if(nt) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
+    window.setReply = (t) => { replyingTo = t; document.getElementById('reply-text').innerText = t; document.getElementById('reply-preview').style.display = 'block'; };
     window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').style.display = 'none'; };
     window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; };
 
     async function send() {
         const t = input.value.trim(); if (!t && !pendingImageFile) return;
         const tempEl = createMessageElement({user:currentUserRole, text:t, createdAt:null}, true);
-        container.appendChild(tempEl); scrollChatToBottom();
+        chatList.appendChild(tempEl);
         const r = replyingTo; input.value = ""; window.cancelReply();
         let url = null;
         if (pendingImageFile) {
-            const sRef = ref(storage, `chat/${Date.now()}.png`);
-            const snap = await uploadBytes(sRef, pendingImageFile);
+            const snap = await uploadBytes(ref(storage, `chat/${Date.now()}.png`), pendingImageFile);
             url = await getDownloadURL(snap.ref); window.cancelImagePreview();
         }
         await addDoc(collection(db, "messages"), { text: t, imageUrl: url, user: currentUserRole, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r });
@@ -278,7 +253,7 @@
 
     document.getElementById('send-btn').onclick = send;
     input.onkeypress = (e) => { if(e.key === 'Enter') send(); };
-    document.getElementById('logout-btn').onclick = () => signOut(auth);
+    document.getElementById('logout-btn').onclick = () => { setDoc(doc(db, "status", currentUserRole), { online: false, lastSeen: serverTimestamp() }, { merge: true }); signOut(auth); };
     document.getElementById('saved-toggle').onclick = () => document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('close-sidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
     
@@ -286,39 +261,26 @@
     document.getElementById('gallery-toggle').onclick = () => gal.style.display = 'flex';
     document.getElementById('close-gallery').onclick = () => gal.style.display = 'none';
     ti.onclick = () => { ti.classList.add('active'); tl.classList.remove('active'); vi.style.display = 'grid'; vl.style.display = 'none'; };
-    tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'flex'; vi.style.display = 'none'; };
+    tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'block'; vi.style.display = 'none'; };
 
     window.addEventListener('paste', async e => {
         const item = Array.from(e.clipboardData.items).find(x => x.type.indexOf('image') !== -1);
         if (item) {
             pendingImageFile = item.getAsFile();
-            const reader = new FileReader(); reader.onload = (ev) => { imagePreview.src = ev.target.result; imagePreviewBox.style.display = 'flex'; };
+            const reader = new FileReader(); reader.onload = (ev) => { imagePreview.src = ev.target.result; imagePreviewBox.style.display = 'block'; };
             reader.readAsDataURL(pendingImageFile);
         }
     });
 
-    searchInput.addEventListener('input', () => {
-        currentSearchTerm = searchInput.value.toLowerCase();
-        document.querySelectorAll('.message').forEach(m => {
-            const b = m.querySelector('.msg-body').innerText.toLowerCase();
-            m.style.display = b.includes(currentSearchTerm) ? 'block' : 'none';
-        });
-    });
-
-    const mv = document.getElementById('media-viewer-modal'), mvi = document.getElementById('media-viewer-image'), mvc = document.getElementById('media-viewer-caption');
+    const mv = document.getElementById('media-viewer-modal'), mvi = document.getElementById('media-viewer-image');
     let curImgIdx = 0;
-    window.openMediaViewer = (url) => { curImgIdx = allImageUrlsAndCaptions.findIndex(i => i.url === url); showImg(curImgIdx); mv.style.display = 'flex'; };
-    function showImg(idx) { if (idx >= 0 && idx < allImageUrlsAndCaptions.length) { mvi.src = allImageUrlsAndCaptions[idx].url; curImgIdx = idx; } }
+    window.openMediaViewer = (url) => { curImgIdx = allImageUrlsAndCaptions.findIndex(i => i.url === url); mvi.src = url; mv.style.display = 'flex'; };
     document.getElementById('close-media-viewer').onclick = () => mv.style.display = 'none';
-    document.getElementById('media-viewer-prev').onclick = () => showImg(curImgIdx - 1);
-    document.getElementById('media-viewer-next').onclick = () => showImg(curImgIdx + 1);
+    document.getElementById('media-viewer-prev').onclick = () => { if(curImgIdx>0) { curImgIdx--; mvi.src = allImageUrlsAndCaptions[curImgIdx].url; } };
+    document.getElementById('media-viewer-next').onclick = () => { if(curImgIdx<allImageUrlsAndCaptions.length-1) { curImgIdx++; mvi.src = allImageUrlsAndCaptions[curImgIdx].url; } };
 
     loginBtn.onclick = () => signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value).catch(e => loginError.innerText = e.message);
-    signupBtn.onclick = () => createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value).then(() => alert("Account Created")).catch(e => loginError.innerText = e.message);
-
-    // Watch for dynamic height changes (like images loading) and scroll
-    const observer = new MutationObserver(() => { if (container.scrollHeight - container.clientHeight <= container.scrollTop + 200) scrollChatToBottom(); });
-    observer.observe(container, { childList: true, subtree: true });
+    signupBtn.onclick = () => createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value).catch(e => loginError.innerText = e.message);
 </script>
 </body>
 </html>
