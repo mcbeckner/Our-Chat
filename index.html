@@ -185,32 +185,52 @@
 
     function startChatListener() {
         if (chatUnsubscribe) chatUnsubscribe();
-        const q = query(collection(db, "messages"), orderBy("createdAt", "desc"), limit(msgLimit));
+        
+        // We query by createdAt ASCENDING so new messages naturally fall at the end
+        // but we limit to the last X messages.
+        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+
         chatUnsubscribe = onSnapshot(q, (snap) => {
-            const atBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 60;
-            
-            // Collect all current message IDs to find "Saved" and "Gallery" items
-            let tempGallery = [];
-            let tempSaved = [];
+            const isAtBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 100;
 
-            snap.docs.forEach(doc => {
-                const m = { id: doc.id, ...doc.data() };
-                if (m.imageUrl) tempGallery.push({url: m.imageUrl, caption: m.text});
-                if (m.isSaved) tempSaved.push(m);
-
-                // Handle Adding/Updating DOM
-                const existing = document.getElementById(`msg-${m.id}`);
-                if (!existing) {
-                    const el = createMessageElement(m);
-                    // To keep order correct with 'desc' query, we find where to insert
-                    const messages = Array.from(container.querySelectorAll('.message'));
-                    const nextMsg = messages.find(msg => parseInt(msg.getAttribute('data-time')) > (m.createdAt?.seconds || 0));
-                    if (nextMsg) container.insertBefore(el, nextMsg);
-                    else container.appendChild(el);
-                } else if (snap.docChanges().find(c => c.doc.id === m.id && c.type === "modified")) {
-                    container.replaceChild(createMessageElement(m), existing);
+            snap.docChanges().forEach(c => {
+                const m = { id: c.doc.id, ...c.doc.data() };
+                
+                if (c.type === "added") {
+                    if (!document.getElementById(`msg-${m.id}`)) {
+                        container.appendChild(createMessageElement(m));
+                    }
+                    if (!firstLoadChat && m.user !== currentUserRole) notify(m.user, m.text);
+                }
+                if (c.type === "modified") {
+                    const ex = document.getElementById(`msg-${m.id}`);
+                    if (ex) container.replaceChild(createMessageElement(m), ex);
+                }
+                if (c.type === "removed") {
+                    const ex = document.getElementById(`msg-${m.id}`);
+                    if (ex) ex.remove();
                 }
             });
+
+            // Update Gallery and Saved Lists
+            const allMsgs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+            allImageUrlsAndCaptions = allMsgs.filter(m => m.imageUrl).map(m => ({url: m.imageUrl, caption: m.text}));
+            document.getElementById('saved-list').innerHTML = allMsgs.filter(m => m.isSaved).map(s => `
+                <div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;">
+                    <strong>${s.user}</strong>: ${s.text || 'Image'}
+                </div>`).join('');
+
+            // FORCE SCROLL TO BOTTOM
+            // We use a timeout to wait for images/rendering to finish
+            if (isAtBottom || firstLoadChat) {
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+            }
+            firstLoadChat = false;
+        });
+    }
+
 
             // Cleanup removed docs
             snap.docChanges().forEach(c => {
@@ -258,14 +278,40 @@
     window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; };
 
     async function send() {
-        const t = input.value.trim(); if (!t && !pendingImageFile) return;
-        const r = replyingTo; input.value = ""; window.cancelReply();
+        const t = input.value.trim(); 
+        if (!t && !pendingImageFile) return;
+        
+        const r = replyingTo; 
+        input.value = ""; 
+        window.cancelReply();
+        
+        // Scroll down immediately so user sees space for the new message
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 10);
+
         let url = null;
         if (pendingImageFile) {
             const sRef = ref(storage, `chat/${Date.now()}.png`);
             const snap = await uploadBytes(sRef, pendingImageFile);
-            url = await getDownloadURL(snap.ref); window.cancelImagePreview();
+            url = await getDownloadURL(snap.ref); 
+            window.cancelImagePreview();
         }
+
+        try {
+            await addDoc(collection(db, "messages"), { 
+                text: t, 
+                imageUrl: url, 
+                user: currentUserRole, 
+                createdAt: serverTimestamp(), 
+                isSaved: false, 
+                reactions: {}, 
+                replyTo: r 
+            });
+            // Final scroll push after database confirmation
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+        } catch (e) {
+            console.error("Error sending message: ", e);
+        }
+    }
         await addDoc(collection(db, "messages"), { text: t, imageUrl: url, user: currentUserRole, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r });
     }
     document.getElementById('send-btn').onclick = send;
