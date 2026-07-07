@@ -7,12 +7,10 @@
         body.dark { --bg: #1e1e1e; --msg-bg: #333; --txt: #eee; --lg: #054c44; --mg: #000; color: var(--txt); }
         body { font-family: sans-serif; background: var(--bg); margin: 0; display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
         
-        /* Login Screen Styles */
         #login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
         #login-form { background: var(--msg-bg); padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; width: 300px; }
         #login-form input { padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 1em; background: var(--bg); color: var(--txt); }
         #login-form button { padding: 10px; background: var(--mg); color: white; border: none; border-radius: 5px; font-size: 1em; cursor: pointer; }
-        #login-form button:hover { opacity: 0.9; }
         #login-error { color: red; font-size: 0.9em; text-align: center; }
 
         #main-chat { flex: 1; display: flex; flex-direction: column; position: relative; }
@@ -24,7 +22,6 @@
         .sent { align-self: flex-end; background: var(--lg); }
         .received { align-self: flex-start; }
         .reaction-menu { position: absolute; top: -35px; background: var(--msg-bg); border-radius: 20px; padding: 5px; display: none; gap: 8px; box-shadow: 0 2px 10px #0003; z-index: 50; border: 1px solid #8884; }
-        .message::before { content: ""; position: absolute; top: -20px; left: 0; width: 100%; height: 20px; }
         .message:hover .reaction-menu { display: flex; cursor: pointer; }
         .reaction-bar { position: absolute; bottom: -10px; left: 10px; background: var(--msg-bg); border-radius: 10px; padding: 2px 5px; font-size: 12px; box-shadow: 0 1px 3px #0002; display:flex; gap:2px; }
         .reply-quote { background: #0002; border-left: 3px solid #128c7e; padding: 5px; border-radius: 3px; font-size: 12px; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -39,7 +36,6 @@
         #sidebar.open { right: 0; }
         .msg-img { max-width: 100%; border-radius: 5px; cursor: pointer; margin-top: 5px; }
         
-        /* Gallery */
         #gallery-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
         #gallery-content { background: var(--bg); width: 80%; height: 80%; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
         #gallery-tabs { background: var(--mg); padding: 10px; display: flex; gap: 10px; justify-content: space-between; }
@@ -49,7 +45,6 @@
         .grid-view img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; cursor: pointer; }
         .list-view { display: none; flex-direction: column; gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
 
-        /* Media Viewer */
         #media-viewer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; align-items: center; justify-content: center; }
         #media-viewer-content { max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; }
         #media-viewer-image { max-width: 100%; max-height: 80vh; object-fit: contain; }
@@ -59,12 +54,10 @@
         #media-viewer-nav { position: absolute; width: 100%; height: 100%; display: flex; justify-content: space-between; align-items: center; }
         #media-viewer-nav button { background: none; border: none; color: white; font-size: 3em; cursor: pointer; padding: 0 20px; }
         #media-viewer-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
-        
         .search-highlight { background-color: yellow; color: black; }
     </style>
 </head>
 <body>
-<!-- Login Screen -->
 <div id="login-screen">
     <h2>Welcome to Our Private Chat</h2>
     <div id="login-form">
@@ -76,11 +69,11 @@
     </div>
 </div>
 
-<div id="main-chat" style="display:none;"> <!-- Hidden until logged in -->
+<div id="main-chat" style="display:none;">
     <header>
         <div style="display:flex;gap:5px;align-items:center;">
             <button id="dark-toggle" style="background:none;font-size:16px;">🌙</button>
-            <span id="current-user-display" style="font-weight:bold;"></span> <!-- Displays "Husband" or "Wife" -->
+            <span id="current-user-display" style="font-weight:bold;"></span>
             <input type="text" id="search-input" placeholder="Search messages..." />
         </div>
         <div style="display:flex;gap:5px;">
@@ -124,52 +117,27 @@
 </div>
 
 <div id="media-viewer-modal">
-    <div id="media-viewer-controls">
-        <button id="close-media-viewer">&times;</button>
-    </div>
-    <div id="media-viewer-content">
-        <img id="media-viewer-image" src="" alt="Media Viewer">
-        <div id="media-viewer-caption"></div>
-    </div>
-    <div id="media-viewer-nav">
-        <button id="media-viewer-prev">&lt;</button>
-        <button id="media-viewer-next">&gt;</button>
-    </div>
+    <div id="media-viewer-controls"><button id="close-media-viewer">&times;</button></div>
+    <div id="media-viewer-content"><img id="media-viewer-image" src="" alt="Media Viewer"><div id="media-viewer-caption"></div></div>
+    <div id="media-viewer-nav"><button id="media-viewer-prev">&lt;</button><button id="media-viewer-next">&gt;</button></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
     const config = { apiKey: "AIzaSyBYv5Pu7SCh9pRkgLKA9gelk7AZIr0Gfxw", authDomain: "ourchat-34326.firebaseapp.com", projectId: "ourchat-34326", storageBucket: "ourchat-34326.firebasestorage.app", messagingSenderId: "788530048366", appId: "1:788530048366:web:cc4e06882b86988ebf657f" };
-    const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app);
-    const auth = getAuth(app); // Initialize Firebase Auth
+    const app = initializeApp(config), db = getFirestore(app), storage = getStorage(app), auth = getAuth(app);
 
-    // DOM Elements for Chat UI
     const container = document.getElementById('chat-container'), input = document.getElementById('msg-input'), picker = document.getElementById('emoji-picker');
-    const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview');
-    const searchInput = document.getElementById('search-input');
-    const otherUserStatus = document.getElementById('other-user-status');
-    const currentUserDisplay = document.getElementById('current-user-display'); // For displaying "Husband" or "Wife"
+    const imagePreviewBox = document.getElementById('image-preview-box'), imagePreview = document.getElementById('image-preview'), searchInput = document.getElementById('search-input');
+    const otherUserStatus = document.getElementById('other-user-status'), currentUserDisplay = document.getElementById('current-user-display');
+    const loginScreen = document.getElementById('login-screen'), loginEmail = document.getElementById('login-email'), loginPassword = document.getElementById('login-password');
+    const loginBtn = document.getElementById('login-btn'), signupBtn = document.getElementById('signup-btn'), loginError = document.getElementById('login-error'), logoutBtn = document.getElementById('logout-btn');
 
-    // DOM Elements for Login UI
-    const loginScreen = document.getElementById('login-screen');
-    const loginEmail = document.getElementById('login-email');
-    const loginPassword = document.getElementById('login-password');
-    const loginBtn = document.getElementById('login-btn');
-    const signupBtn = document.getElementById('signup-btn');
-    const loginError = document.getElementById('login-error');
-    const logoutBtn = document.getElementById('logout-btn');
-
-    let currentUserRole = null; // Will be "Husband" or "Wife" based on logged-in user
-    let replyingTo = null;
-    let pendingImageFile = null;
-    let currentSearchTerm = '';
-    let allMessagesFromFirebase = []; 
-    let allImageUrlsAndCaptions = []; 
-    let chatUnsubscribe = null; // To store the unsubscribe function for chat messages
+    let currentUserRole = null, replyingTo = null, pendingImageFile = null, currentSearchTerm = '', allImageUrlsAndCaptions = [], chatUnsubscribe = null, firstLoadChat = true;
 
     const ems = ['😀','😃','😄','😁','😆','😅','😂','🤣','🥲','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','👅','❤️'];
     ems.forEach(e => { const s = document.createElement('span'); s.innerText = e; s.style.cursor='pointer'; s.style.fontSize='20px'; s.onclick = (event) => { input.value += e; input.focus(); event.stopPropagation(); }; picker.appendChild(s); });
@@ -177,353 +145,144 @@
     document.addEventListener('click', () => picker.style.display = 'none');
     document.getElementById('dark-toggle').onclick = () => document.body.classList.toggle('dark');
 
-    if (Notification.permission !== "granted") Notification.requestPermission();
     function notify(u, t) { if (document.hidden && Notification.permission === "granted") new Notification(`${u} messaged`, { body: t || "Sent an image" }); }
     function linkify(text) { return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>'); }
-    
-    function highlightSearch(text, term) {
-        if (!term) return text;
-        const regex = new RegExp(`(${term})`, 'gi');
-        return text.replace(regex, '<span class="search-highlight">$1</span>');
-    }
+    function highlightSearch(text, term) { if (!term) return text; const regex = new RegExp(`(${term})`, 'gi'); return text.replace(regex, '<span class="search-highlight">$1</span>'); }
 
-    let userActivityTimeout;
     function updateMyStatus(onlineState) {
-        if (!currentUserRole) return; // Only update status if authenticated
-        const statusDocRef = doc(db, "status", currentUserRole);
-        const updateData = { online: onlineState, lastSeen: serverTimestamp() };
-        setDoc(statusDocRef, updateData, { merge: true });
+        if (!currentUserRole) return;
+        setDoc(doc(db, "status", currentUserRole), { online: onlineState, lastSeen: serverTimestamp() }, { merge: true });
     }
 
-    window.addEventListener('focus', () => { updateMyStatus(true); clearTimeout(userActivityTimeout); });
-    window.addEventListener('blur', () => { userActivityTimeout = setTimeout(() => updateMyStatus(false), 5000); });
-    window.addEventListener('beforeunload', () => updateMyStatus(false));
-
-    // Listen for other user's status updates
     onSnapshot(collection(db, "status"), (snap) => {
         if (!currentUserRole) return;
         const otherUserRole = currentUserRole === "Husband" ? "Wife" : "Husband";
-        const otherStatusDoc = snap.docs.find(d => d.id === otherUserRole);
-        const otherData = otherStatusDoc?.data();
-
-        if (otherData?.online && (serverTimestamp().seconds - (otherData.lastSeen?.seconds || 0)) < 30) {
-            otherUserStatus.innerText = `${otherUserRole} is Online`;
-            otherUserStatus.style.color = '#28a745';
-        } else if (otherData?.lastSeen) {
-            const lastSeenDate = otherData.lastSeen.toDate();
-            const now = new Date();
-            const diffMs = now - lastSeenDate;
-            const diffMin = Math.round(diffMs / 60000);
-            
-            if (diffMin < 1) otherUserStatus.innerText = `Last seen just now`;
-            else if (diffMin < 60) otherUserStatus.innerText = `Last seen ${diffMin} min ago`;
-            else otherUserStatus.innerText = `Last seen ${Math.round(diffMin/60)} hours ago`;
-            otherUserStatus.style.color = '#6c757d';
-        } else {
-            otherUserStatus.innerText = '';
-        }
+        const otherData = snap.docs.find(d => d.id === otherUserRole)?.data();
+        if (otherData?.online) { otherUserStatus.innerText = `${otherUserRole} is Online`; otherUserStatus.style.color = '#28a745'; }
+        else if (otherData?.lastSeen) { otherUserStatus.innerText = `Last seen ${Math.round((new Date() - otherData.lastSeen.toDate())/60000)}m ago`; otherUserStatus.style.color = '#6c757d'; }
     });
-    
-        msgsFilteredForDisplay.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
-        container.innerHTML = '';
-        msgsFilteredForDisplay.forEach(m => {
-            const isMe = m.user === currentUserRole, div = document.createElement('div'); // Use currentUserRole here
-            div.className = `message ${isMe ? 'sent' : 'received'}`;
-            const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
-            div.innerHTML = `<div class="reaction-menu">
-                <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
-                <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
-                ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
-                </div>
-                <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'<span style="font-weight:normal;color:#888">(edited)</span>':''}</div>
-                ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
-                <div>${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
-                ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
-                <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between"><span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
-                <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span></div>${rb}`;
-            container.appendChild(div);
-        });
-        
-        document.getElementById('saved-list').innerHTML = savedsToRender.map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text?linkify(s.text):'Image'}</div>`).join('');
-        document.getElementById('gal-img-view').innerHTML = imagesForGallery.map(item => `<img src="${item.url}" onclick="openMediaViewer('${item.url}')">`).join('');
-        document.getElementById('gal-lnk-view').innerHTML = linksForGallery.map(l => `<div style="background:#0001;padding:10px;border-radius:5px"><strong>${l.user}</strong>: <a href="${l.u}" target="_blank">${l.u}</a></div>`).join('');
-
-        // Scroll management logic
-        if (shouldAutoScroll && !currentSearchTerm) { // Only auto-scroll if new message AND not searching
-            container.scrollTop = container.scrollHeight;
-        } else if (!shouldAutoScroll) { // If it's not a new message (e.g., reaction/edit)
-            // Try to maintain scroll position relative to bottom if user was already at bottom,
-            // otherwise just keep current scroll position
-            if (isScrolledToBottom) {
-                container.scrollTop = container.scrollHeight;
-            } else {
-                container.scrollTop = currentScrollTop;
-            }
-        }
-    }
-
-    let firstLoadChat = true; 
-    let chatColRef; // Declare chatColRef here
-
-    // --- onAuthStateChanged Listener ---
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // User is signed in
-            loginScreen.style.display = 'none';
-            document.getElementById('main-chat').style.display = 'flex';
-
-            const userEmailLower = user.email.toLowerCase();
-
-            if (userEmailLower === 'mitchell.beckner@gmail.com') {
-                currentUserRole = 'Husband';
-            } else if (userEmailLower === 'demetrybeckner@gmail.com') {
-                currentUserRole = 'Wife';
-            } else {
-                alert(`Unauthorized user: ${user.email}`);
-                signOut(auth);
-                return;
-            }
-            currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
-            updateMyStatus(true); // Set user as online
-
-            // Subscribe to chat messages only once user is authenticated
-               // --- Optimized Chat Logic ---
     function createMessageElement(m) {
-        const isMe = m.user === currentUserRole;
-        const div = document.createElement('div');
+        const isMe = m.user === currentUserRole, div = document.createElement('div');
         div.className = `message ${isMe ? 'sent' : 'received'}`;
-        div.id = `msg-${m.id}`; // Unique ID to find it later
-
+        div.id = `msg-${m.id}`;
         const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
-        
-        div.innerHTML = `
-            <div class="reaction-menu">
-                <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
-                <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
-                ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
-            </div>
-            <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'<span style="font-weight:normal;color:#888">(edited)</span>':''}</div>
-            ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
-            <div>${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
-            ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
-            <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between">
-                <span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
-                <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span>
-            </div>${rb}`;
+        div.innerHTML = `<div class="reaction-menu">
+            <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
+            <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
+            ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
+        </div>
+        <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'(edited)':''}</div>
+        ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
+        <div>${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
+        ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
+        <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between">
+            <span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+            <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span>
+        </div>${rb}`;
         return div;
     }
 
-    if (!chatUnsubscribe) {
-        chatColRef = collection(db, "messages");
-        chatUnsubscribe = onSnapshot(chatColRef, (snap) => {
-            const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
-
-            snap.docChanges().forEach(change => {
-                const m = { id: change.doc.id, ...change.doc.data() };
-                
-                if (change.type === "added") {
-                    const msgEl = createMessageElement(m);
-                    // Append in order based on timestamp (simple append for live chat)
-                    container.appendChild(msgEl);
-                    
-                    if (!firstLoadChat && m.user !== currentUserRole) notify(m.user, m.text);
-                    if (m.imageUrl) allImageUrlsAndCaptions.push({url: m.imageUrl, caption: m.text});
-                } 
-                
-                if (change.type === "modified") {
-                    const existingMsg = document.getElementById(`msg-${m.id}`);
-                    if (existingMsg) {
-                        const newMsgEl = createMessageElement(m);
-                        container.replaceChild(newMsgEl, existingMsg);
-                    }
-                }
-
-                if (change.type === "removed") {
-                    const existingMsg = document.getElementById(`msg-${m.id}`);
-                    if (existingMsg) existingMsg.remove();
-                }
-            });
-
-            if (isScrolledToBottom || firstLoadChat) {
-                container.scrollTop = container.scrollHeight;
-            }
-            firstLoadChat = false;
-        });
-    }
-
-                    
-                    snap.forEach(d => { 
-                        let data = { id: d.id, ...d.data() }; 
-                        tempAllMessages.push(data); 
-                        if (data.imageUrl) {
-                            tempAllImages.push({url: data.imageUrl, caption: data.text || 'Image'});
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            loginScreen.style.display = 'none'; document.getElementById('main-chat').style.display = 'flex';
+            const email = user.email.toLowerCase();
+            currentUserRole = (email === 'mitchell.beckner@gmail.com') ? 'Husband' : (email === 'demetrybeckner@gmail.com') ? 'Wife' : null;
+            if (!currentUserRole) { signOut(auth); return; }
+            currentUserDisplay.innerText = `Logged in as: ${currentUserRole}`;
+            updateMyStatus(true);
+            if (!chatUnsubscribe) {
+                const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+                chatUnsubscribe = onSnapshot(q, (snap) => {
+                    const atBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+                    snap.docChanges().forEach(c => {
+                        const m = { id: c.doc.id, ...c.doc.data() };
+                        if (c.type === "added") { 
+                            container.appendChild(createMessageElement(m)); 
+                            if (!firstLoadChat && m.user !== currentUserRole) notify(m.user, m.text);
+                            if (m.imageUrl) allImageUrlsAndCaptions.push({url: m.imageUrl, caption: m.text});
                         }
+                        if (c.type === "modified") { const ex = document.getElementById(`msg-${m.id}`); if (ex) container.replaceChild(createMessageElement(m), ex); }
+                        if (c.type === "removed") { const ex = document.getElementById(`msg-${m.id}`); if (ex) ex.remove(); }
                     });
-
-                    allMessagesFromFirebase = tempAllMessages;
-                    allImageUrlsAndCaptions = tempAllImages; 
-
-                    renderChatDisplay(shouldAutoScroll); // Pass scroll flag
-                    
+                    if (atBottom || firstLoadChat) container.scrollTop = container.scrollHeight;
                     firstLoadChat = false;
                 });
             }
         } else {
-            // User is signed out
-            loginScreen.style.display = 'flex';
-            document.getElementById('main-chat').style.display = 'none';
-            currentUserRole = null;
-            currentUserDisplay.innerText = '';
-            
-            // Unsubscribe from chat messages when user logs out
-            if (chatUnsubscribe) {
-                chatUnsubscribe(); // Unsubscribe the listener
-                chatUnsubscribe = null; // Clear the unsubscribe function
-            }
-            container.innerHTML = ''; // Clear chat display for logged out state
-            firstLoadChat = true; // Reset for next login
+            loginScreen.style.display = 'flex'; document.getElementById('main-chat').style.display = 'none';
+            if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+            container.innerHTML = ''; firstLoadChat = true;
         }
     });
 
-    window.react = async (id, e) => { if(!currentUserRole) { alert("Please login to react."); return; } updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 }); };
-    window.save = async (id, s) => { if(!currentUserRole) { alert("Please login to save messages."); return; } updateDoc(doc(db, "messages", id), { isSaved: !s }); };
-    window.delMsg = async (id) => { if(!currentUserRole) { alert("Please login to delete messages."); return; } if(confirm("Delete message?")) deleteDoc(doc(db, "messages", id)); };
-    window.editMsg = async (id, oldText) => { if(!currentUserRole) { alert("Please login to edit messages."); return; } const nt = prompt("Edit message:", oldText); if(nt && nt!==oldText) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
-    
-    window.setReply = (txt) => { replyingTo = txt; document.getElementById('reply-text').innerText = txt; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
+    window.react = (id, e) => updateDoc(doc(db, "messages", id), { [`reactions.${e}`]: 1 });
+    window.save = (id, s) => updateDoc(doc(db, "messages", id), { isSaved: !s });
+    window.delMsg = (id) => { if(confirm("Delete?")) deleteDoc(doc(db, "messages", id)); };
+    window.editMsg = (id, old) => { const nt = prompt("Edit:", old); if(nt && nt!==old) updateDoc(doc(db, "messages", id), { text: nt, edited: true }); };
+    window.setReply = (t) => { replyingTo = t; document.getElementById('reply-text').innerText = t; document.getElementById('reply-preview').style.display = 'flex'; input.focus(); };
     window.cancelReply = () => { replyingTo = null; document.getElementById('reply-preview').style.display = 'none'; };
-    
-    window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; imagePreview.src = ''; };
+    window.cancelImagePreview = () => { pendingImageFile = null; imagePreviewBox.style.display = 'none'; };
 
-    async function send() { 
-        if (!currentUserRole) { loginError.innerText = "Please login to send messages."; return; }
-        const t = input.value.trim(); 
-        if (!t && !pendingImageFile) return; 
-
-        const u = currentUserRole; 
-        input.value = ""; 
-        const r = replyingTo; 
-        window.cancelReply();
-
-        let imageUrl = null;
+    async function send() {
+        const t = input.value.trim(); if (!t && !pendingImageFile) return;
+        const r = replyingTo; input.value = ""; window.cancelReply();
+        let url = null;
         if (pendingImageFile) {
             const sRef = ref(storage, `chat/${Date.now()}.png`);
             const snap = await uploadBytes(sRef, pendingImageFile);
-            imageUrl = await getDownloadURL(snap.ref);
-            window.cancelImagePreview(); 
+            url = await getDownloadURL(snap.ref); window.cancelImagePreview();
         }
-
-        await addDoc(collection(db, "messages"), { text: t, imageUrl: imageUrl, user: u, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r }); 
+        await addDoc(collection(db, "messages"), { text: t, imageUrl: url, user: currentUserRole, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r });
     }
     document.getElementById('send-btn').onclick = send;
     input.onkeypress = (e) => { if(e.key === 'Enter') send(); };
+    document.getElementById('logout-btn').onclick = () => signOut(auth);
     document.getElementById('saved-toggle').onclick = () => document.getElementById('sidebar').classList.toggle('open');
     document.getElementById('close-sidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
 
-    const gal = document.getElementById('gallery-modal'), ti = document.getElementById('tab-img'), tl = document.getElementById('tab-lnk'), vi = document.getElementById('gal-img-view'), vl = document.getElementById('gal-lnk-view');
+    const gal = document.getElementById('gallery-modal');
     document.getElementById('gallery-toggle').onclick = () => {
-        ti.classList.add('active'); tl.classList.remove('active');
-        vi.style.display = 'grid'; vl.style.display = 'none';
+        document.getElementById('gal-img-view').innerHTML = allImageUrlsAndCaptions.map(i => `<img src="${i.url}" onclick="openMediaViewer('${i.url}')">`).join('');
         gal.style.display = 'flex';
     };
     document.getElementById('close-gallery').onclick = () => gal.style.display = 'none';
-    ti.onclick = () => { ti.classList.add('active'); tl.classList.remove('active'); vi.style.display = 'grid'; vl.style.display = 'none'; };
-    tl.onclick = () => { tl.classList.add('active'); ti.classList.remove('active'); vl.style.display = 'flex'; vi.style.display = 'none'; };
 
-    input.oninput = () => { if(!currentUserRole) return; setDoc(doc(db, "status", currentUserRole), { typing: true }); setTimeout(() => setDoc(doc(db, "status", currentUserRole), { typing: false }), 3000); };
-    
     window.addEventListener('paste', async e => {
-        if (!currentUserRole) { loginError.innerText = "Please login to send images."; return; }
         const item = Array.from(e.clipboardData.items).find(x => x.type.indexOf('image') !== -1);
         if (item) {
             pendingImageFile = item.getAsFile();
             const reader = new FileReader();
-            reader.onload = (event) => {
-                imagePreview.src = event.target.result;
-                imagePreviewBox.style.display = 'flex';
-                input.focus();
-            };
+            reader.onload = (ev) => { imagePreview.src = ev.target.result; imagePreviewBox.style.display = 'flex'; };
             reader.readAsDataURL(pendingImageFile);
         }
     });
 
     searchInput.addEventListener('input', () => {
         currentSearchTerm = searchInput.value.toLowerCase();
-        const allMsgs = document.querySelectorAll('.message');
-        
-        allMsgs.forEach(msg => {
-            const text = msg.innerText.toLowerCase();
-            if (text.includes(currentSearchTerm)) {
-                msg.style.display = 'block';
-            } else {
-                msg.style.display = 'none';
-            }
+        document.querySelectorAll('.message').forEach(m => {
+            m.style.display = m.innerText.toLowerCase().includes(currentSearchTerm) ? 'block' : 'none';
         });
     });
 
-
-    const mediaViewerModal = document.getElementById('media-viewer-modal');
-    const mediaViewerImage = document.getElementById('media-viewer-image');
-    const mediaViewerCaption = document.getElementById('media-viewer-caption');
-    const closeMediaViewerBtn = document.getElementById('close-media-viewer');
-    const mediaViewerPrevBtn = document.getElementById('media-viewer-prev');
-    const mediaViewerNextBtn = document.getElementById('media-viewer-next'); // Corrected typo
-
-    let currentImageIndex = 0; 
-
-    window.openMediaViewer = (imageUrl) => {
-        currentImageIndex = allImageUrlsAndCaptions.findIndex(item => item.url === imageUrl);
-        showImageInViewer(currentImageIndex);
-        mediaViewerModal.style.display = 'flex';
+    const mv = document.getElementById('media-viewer-modal'), mvi = document.getElementById('media-viewer-image'), mvc = document.getElementById('media-viewer-caption');
+    let curImgIdx = 0;
+    window.openMediaViewer = (url) => {
+        curImgIdx = allImageUrlsAndCaptions.findIndex(i => i.url === url);
+        showImg(curImgIdx); mv.style.display = 'flex';
     };
-
-    function showImageInViewer(index) {
-        if (index >= 0 && index < allImageUrlsAndCaptions.length) {
-            mediaViewerImage.src = allImageUrlsAndCaptions[index].url;
-            mediaViewerCaption.innerText = allImageUrlsAndCaptions[index].caption || '';
-            currentImageIndex = index;
-            mediaViewerPrevBtn.disabled = (currentImageIndex === 0);
-            mediaViewerNextBtn.disabled = (currentImageIndex === allImageUrlsAndCaptions.length - 1);
+    function showImg(idx) {
+        if (idx >= 0 && idx < allImageUrlsAndCaptions.length) {
+            mvi.src = allImageUrlsAndCaptions[idx].url; mvc.innerText = allImageUrlsAndCaptions[idx].caption || '';
+            curImgIdx = idx;
         }
     }
+    document.getElementById('close-media-viewer').onclick = () => mv.style.display = 'none';
+    document.getElementById('media-viewer-prev').onclick = () => showImg(curImgIdx - 1);
+    document.getElementById('media-viewer-next').onclick = () => showImg(curImgIdx + 1);
 
-    closeMediaViewerBtn.onclick = () => { mediaViewerModal.style.display = 'none'; };
-    mediaViewerPrevBtn.onclick = () => { showImageInViewer(currentImageIndex - 1); };
-    mediaViewerNextBtn.onclick = () => { showImageInViewer(currentImageIndex + 1); };
-
-    document.addEventListener('keydown', (e) => {
-        if (mediaViewerModal.style.display === 'flex') {
-            if (e.key === 'Escape') mediaViewerModal.style.display = 'none';
-            else if (e.key === 'ArrowLeft') mediaViewerPrevBtn.click();
-            else if (e.key === 'ArrowRight') mediaViewerNextBtn.click();
-        }
-    });
-
-    // --- Firebase Auth Logic ---
-    loginBtn.onclick = async () => {
-        loginError.innerText = '';
-        try {
-            await signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-        } catch (error) {
-            loginError.innerText = error.message;
-        }
-    };
-
-    signupBtn.onclick = async () => {
-        loginError.innerText = '';
-        try {
-            await createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value);
-            alert("Account created! You can now log in.");
-        } catch (error) {
-            loginError.innerText = error.message;
-        }
-    };
-
-    logoutBtn.onclick = async () => {
-        await signOut(auth);
-    };
-
+    loginBtn.onclick = () => signInWithEmailAndPassword(auth, loginEmail.value, loginPassword.value).catch(e => loginError.innerText = e.message);
+    signupBtn.onclick = () => createUserWithEmailAndPassword(auth, loginEmail.value, loginPassword.value).then(() => alert("Account Created")).catch(e => loginError.innerText = e.message);
 </script>
 </body>
 </html>
