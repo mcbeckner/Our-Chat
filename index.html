@@ -224,35 +224,6 @@
         }
     });
     
-    // --- Render Chat Display Function ---
-    function renderChatDisplay(shouldAutoScroll = false) { // shouldAutoScroll now explicitly controls scrolling
-        if (!currentUserRole) { // Don't render if not authenticated
-            container.innerHTML = ''; // Clear chat if not logged in
-            return; 
-        }
-
-        const currentScrollTop = container.scrollTop;
-        const isScrolledToBottom = container.scrollHeight - container.clientHeight <= currentScrollTop + 1; // Tolerance for "at bottom"
-
-        let msgsFilteredForDisplay = []; 
-        let savedsToRender = [];
-        let imagesForGallery = []; 
-        let linksForGallery = [];
-
-        allMessagesFromFirebase.forEach(data => {
-            const messageMatchesSearch = !currentSearchTerm || (data.text && data.text.toLowerCase().includes(currentSearchTerm.toLowerCase()));
-
-            if (messageMatchesSearch) {
-                msgsFilteredForDisplay.push(data); 
-                if (data.isSaved) savedsToRender.push(data);
-                if (data.imageUrl) imagesForGallery.push({url: data.imageUrl, caption: data.text || 'Image'});
-                if (data.text) {
-                    const urls = data.text.match(/(https?:\/\/[^\s]+)/g);
-                    if (urls) urls.forEach(u => linksForGallery.push({u, user: data.user}));
-                }
-            }
-        });
-
         msgsFilteredForDisplay.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
 
         container.innerHTML = '';
@@ -317,22 +288,70 @@
             updateMyStatus(true); // Set user as online
 
             // Subscribe to chat messages only once user is authenticated
-            if (!chatUnsubscribe) {
-                chatColRef = collection(db, "messages"); // Initialize chatColRef here
-                chatUnsubscribe = onSnapshot(chatColRef, (snap) => {
-                    let tempAllMessages = [];
-                    let tempAllImages = [];
-                    let shouldAutoScroll = false; // Flag for auto-scroll
+               // --- Optimized Chat Logic ---
+    function createMessageElement(m) {
+        const isMe = m.user === currentUserRole;
+        const div = document.createElement('div');
+        div.className = `message ${isMe ? 'sent' : 'received'}`;
+        div.id = `msg-${m.id}`; // Unique ID to find it later
 
-                    snap.docChanges().forEach(c => { 
-                        if (c.type === "added") {
-                            // Check if it's a new message and not from the current user, then notify
-                            if (!firstLoadChat && c.doc.data().user !== currentUserRole) {
-                                notify(c.doc.data().user, c.doc.data().text);
-                            }
-                            shouldAutoScroll = true; // Mark for auto-scroll if any new message
-                        }
-                    });
+        const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
+        
+        div.innerHTML = `
+            <div class="reaction-menu">
+                <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
+                <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
+                ${isMe ? `<span onclick="editMsg('${m.id}','${m.text?m.text.replace(/'/g,"\\'"):''}')">✏️</span><span onclick="delMsg('${m.id}')">🗑️</span>` : ''}
+            </div>
+            <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'<span style="font-weight:normal;color:#888">(edited)</span>':''}</div>
+            ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
+            <div>${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
+            ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
+            <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between">
+                <span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+                <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span>
+            </div>${rb}`;
+        return div;
+    }
+
+    if (!chatUnsubscribe) {
+        chatColRef = collection(db, "messages");
+        chatUnsubscribe = onSnapshot(chatColRef, (snap) => {
+            const isScrolledToBottom = container.scrollHeight - container.clientHeight <= container.scrollTop + 50;
+
+            snap.docChanges().forEach(change => {
+                const m = { id: change.doc.id, ...change.doc.data() };
+                
+                if (change.type === "added") {
+                    const msgEl = createMessageElement(m);
+                    // Append in order based on timestamp (simple append for live chat)
+                    container.appendChild(msgEl);
+                    
+                    if (!firstLoadChat && m.user !== currentUserRole) notify(m.user, m.text);
+                    if (m.imageUrl) allImageUrlsAndCaptions.push({url: m.imageUrl, caption: m.text});
+                } 
+                
+                if (change.type === "modified") {
+                    const existingMsg = document.getElementById(`msg-${m.id}`);
+                    if (existingMsg) {
+                        const newMsgEl = createMessageElement(m);
+                        container.replaceChild(newMsgEl, existingMsg);
+                    }
+                }
+
+                if (change.type === "removed") {
+                    const existingMsg = document.getElementById(`msg-${m.id}`);
+                    if (existingMsg) existingMsg.remove();
+                }
+            });
+
+            if (isScrolledToBottom || firstLoadChat) {
+                container.scrollTop = container.scrollHeight;
+            }
+            firstLoadChat = false;
+        });
+    }
+
                     
                     snap.forEach(d => { 
                         let data = { id: d.id, ...d.data() }; 
@@ -430,9 +449,19 @@
     });
 
     searchInput.addEventListener('input', () => {
-        currentSearchTerm = searchInput.value.trim();
-        renderChatDisplay(); 
+        currentSearchTerm = searchInput.value.toLowerCase();
+        const allMsgs = document.querySelectorAll('.message');
+        
+        allMsgs.forEach(msg => {
+            const text = msg.innerText.toLowerCase();
+            if (text.includes(currentSearchTerm)) {
+                msg.style.display = 'block';
+            } else {
+                msg.style.display = 'none';
+            }
+        });
     });
+
 
     const mediaViewerModal = document.getElementById('media-viewer-modal');
     const mediaViewerImage = document.getElementById('media-viewer-image');
