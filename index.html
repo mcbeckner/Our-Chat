@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8"><title><3 M&D Chat <3</title>
+    <meta charset="UTF-8"><title>Family Chat</title>
     <style>
         :root { --mg: #075e54; --lg: #dcf8c6; --bg: #e5ddd5; --msg-bg: white; --txt: black; }
         body.dark { --bg: #1e1e1e; --msg-bg: #333; --txt: #eee; --lg: #054c44; --mg: #000; color: var(--txt); }
@@ -19,23 +19,25 @@
         header input { background: #0e6c62; color: white; }
         
         #chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: auto; }
-        
-        /* Pagination Button Styling */
         .load-more-btn { align-self: center; background: var(--mg); color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; margin-bottom: 10px; font-size: 0.8em; opacity: 0.8; }
-        .load-more-btn:hover { opacity: 1; }
-
-        .message { max-width: 75%; padding: 10px; border-radius: 10px; box-shadow: 0 1px 2px #0002; position: relative; background: var(--msg-bg); color: var(--txt); }
+        
+        .message { max-width: 75%; padding: 10px; border-radius: 10px; box-shadow: 0 1px 2px #0002; position: relative; background: var(--msg-bg); color: var(--txt); transition: opacity 0.3s; }
+        .message.sending { opacity: 0.5; } /* Optimistic UI Style */
         .sent { align-self: flex-end; background: var(--lg); }
         .received { align-self: flex-start; }
         
         .reaction-menu { position: absolute; top: -35px; background: var(--msg-bg); border-radius: 20px; padding: 5px; display: none; gap: 8px; box-shadow: 0 2px 10px #0003; z-index: 50; border: 1px solid #8884; }
-        /* Invisible bridge to keep menu open while moving cursor */
         .reaction-menu::after { content: ""; position: absolute; top: 100%; left: 0; width: 100%; height: 20px; }
         .message:hover .reaction-menu { display: flex; cursor: pointer; }
         
         .reaction-bar { position: absolute; bottom: -10px; left: 10px; background: var(--msg-bg); border-radius: 10px; padding: 2px 5px; font-size: 12px; box-shadow: 0 1px 3px #0002; display:flex; gap:2px; }
         .reply-quote { background: #0002; border-left: 3px solid #128c7e; padding: 5px; border-radius: 3px; font-size: 12px; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
+        /* Link Preview Styles */
+        .link-preview { background: rgba(0,0,0,0.05); border-radius: 5px; padding: 8px; margin-top: 5px; border-left: 3px solid var(--mg); font-size: 0.9em; display: flex; flex-direction: column; }
+        .link-preview a { color: var(--mg); text-decoration: none; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-preview span { font-size: 0.8em; color: #666; }
+
         #input-area { background: var(--bg); padding: 15px; display: flex; flex-direction: column; border-top: 1px solid #ccc; }
         #reply-preview { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid var(--mg); font-size: 12px; justify-content: space-between; margin-bottom: 5px; border-radius: 3px; }
         #image-preview-box { display: none; background: #0001; padding: 5px 10px; border-left: 3px solid #128c7e; font-size: 12px; align-items: center; gap: 10px; margin-bottom: 5px; border-radius: 3px; }
@@ -45,12 +47,6 @@
         #sidebar { width: 250px; background: var(--bg); position: absolute; right: -250px; height: 100%; transition: 0.3s; z-index: 100; border-left: 1px solid #888; display:flex; flex-direction:column; }
         #sidebar.open { right: 0; }
         .msg-img { max-width: 100%; border-radius: 5px; cursor: pointer; margin-top: 5px; }
-        
-        #gallery-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center; }
-        #gallery-content { background: var(--bg); width: 80%; height: 80%; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; }
-        #gallery-tabs { background: var(--mg); padding: 10px; display: flex; gap: 10px; justify-content: space-between; align-items: center; }
-        .grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; padding: 15px; overflow-y: auto; flex: 1; }
-        .grid-view img { width: 100%; height: 120px; object-fit: cover; border-radius: 5px; cursor: pointer; }
 
         #media-viewer-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 300; align-items: center; justify-content: center; }
         #media-viewer-content { max-width: 90%; max-height: 90%; display: flex; flex-direction: column; align-items: center; }
@@ -62,7 +58,7 @@
 </head>
 <body>
 <div id="login-screen">
-    <h2>"Turns out not where, but who you're with that really matters"</h2>
+    <h2>Welcome to Our Private Chat</h2>
     <div id="login-form">
         <input type="email" id="login-email" placeholder="Email" />
         <input type="password" id="login-password" placeholder="Password" />
@@ -109,9 +105,9 @@
     <div id="saved-list" style="padding:10px;overflow-y:auto;flex:1"></div>
 </div>
 
-<div id="gallery-modal">
-    <div id="gallery-content">
-        <div id="gallery-tabs" style="background:var(--mg); padding:10px; display:flex; justify-content:space-between; align-items:center;">
+<div id="gallery-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 200; align-items: center; justify-content: center;">
+    <div id="gallery-content" style="background: var(--bg); width: 80%; height: 80%; border-radius: 10px; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="background:var(--mg); padding:10px; display:flex; justify-content:space-between; align-items:center;">
             <span style="color:white; font-weight:bold;">Gallery</span>
             <button id="close-gallery" style="background:red; color:white; border:none; padding:5px 15px; cursor:pointer;">Close</button>
         </div>
@@ -152,6 +148,15 @@
     function linkify(text) { return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>'); }
     function highlightSearch(text, term) { if (!term) return text; const regex = new RegExp(`(${term})`, 'gi'); return text.replace(regex, '<span class="search-highlight">$1</span>'); }
 
+    // Better Link Preview Logic
+    function getLinkPreview(text) {
+        const urlMatch = text.match(/(https?:\/\/[^\s]+)/g);
+        if (!urlMatch) return "";
+        const url = urlMatch[0];
+        const domain = new URL(url).hostname;
+        return `<div class="link-preview"><a href="${url}" target="_blank">${domain}</a><span>Shared Link</span></div>`;
+    }
+
     function updateMyStatus(onlineState) {
         if (!currentUserRole) return;
         setDoc(doc(db, "status", currentUserRole), { online: onlineState, lastSeen: serverTimestamp() }, { merge: true });
@@ -161,15 +166,24 @@
         if (!currentUserRole) return;
         const otherUserRole = currentUserRole === "Husband" ? "Wife" : "Husband";
         const otherData = snap.docs.find(d => d.id === otherUserRole)?.data();
-        if (otherData?.online) { otherUserStatus.innerText = `${otherUserRole} is Online`; otherUserStatus.style.color = '#28a745'; }
-        else if (otherData?.lastSeen) { otherUserStatus.innerText = `Last seen ${Math.round((new Date() - otherData.lastSeen.toDate())/60000)}m ago`; otherUserStatus.style.color = '#6c757d'; }
+        const statusEl = otherUserStatus;
+        if (otherData?.online) { 
+            statusEl.innerText = `${otherUserRole} is Online`; statusEl.style.color = '#28a745'; 
+            // If other user is online, mark messages as read
+            document.querySelectorAll('.receipt').forEach(r => r.style.color = '#34b7f1'); // Blue ticks
+        }
+        else if (otherData?.lastSeen) { statusEl.innerText = `Last seen ${Math.round((new Date() - otherData.lastSeen.toDate())/60000)}m ago`; statusEl.style.color = '#6c757d'; }
     });
 
-    function createMessageElement(m) {
+    function createMessageElement(m, isSending = false) {
         const isMe = m.user === currentUserRole, div = document.createElement('div');
-        div.className = `message ${isMe ? 'sent' : 'received'}`;
-        div.id = `msg-${m.id}`;
+        div.className = `message ${isMe ? 'sent' : 'received'} ${isSending ? 'sending' : ''}`;
+        div.id = isSending ? `sending-${Date.now()}` : `msg-${m.id}`;
+        
         const rb = m.reactions ? `<div class="reaction-bar">${Object.entries(m.reactions).filter(([e,c])=>c>0).map(([e])=>e).join('')}</div>` : '';
+        const receipt = isMe ? `<span class="receipt" style="margin-left:5px; font-size:10px; color:#ccc;">✔✔</span>` : '';
+        const linkPreview = m.text ? getLinkPreview(m.text) : "";
+
         div.innerHTML = `<div class="reaction-menu">
             <span onclick="setReply('${m.text ? m.text.replace(/'/g,"\\'") : 'Image'}')">↩️</span>
             <span onclick="react('${m.id}','❤️')">❤️</span><span onclick="react('${m.id}','😂')">😂</span><span onclick="react('${m.id}','👍')">👍</span>
@@ -178,10 +192,11 @@
         <div style="font-size:10px;font-weight:bold">${m.user} ${m.edited?'(edited)':''}</div>
         ${m.replyTo ? `<div class="reply-quote">${m.replyTo}</div>` : ""}
         <div class="msg-body">${m.text ? highlightSearch(linkify(m.text), currentSearchTerm) : ""}</div>
+        ${linkPreview}
         ${m.imageUrl ? `<img src="${m.imageUrl}" class="msg-img" onclick="openMediaViewer('${m.imageUrl}')">` : ""}
-        <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between">
-            <span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
-            <span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span>
+        <div style="font-size:9px;color:#888;margin-top:5px;display:flex;justify-content:space-between;align-items:center;">
+            <span>${m.createdAt?new Date(m.createdAt.seconds*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Sending...'}</span>
+            <div><span style="cursor:pointer;color:${m.isSaved?'#f39c12':'#ccc'}" onclick="save('${m.id}',${m.isSaved})"> ★</span> ${receipt}</div>
         </div>${rb}`;
         return div;
     }
@@ -196,17 +211,14 @@
             snap.docChanges().forEach(c => {
                 const m = { id: c.doc.id, ...c.doc.data() };
                 if (c.type === "added") {
+                    // Remove optimistic "sending" version if it exists
+                    const sendingMsg = document.querySelector('.message.sending');
+                    if (sendingMsg && m.user === currentUserRole) sendingMsg.remove();
+
                     if (!document.getElementById(`msg-${m.id}`)) {
                         const newEl = createMessageElement(m);
-                        
-                        // If loading more, put at top. If new message, put at bottom.
-                        if (firstLoadChat || isAtBottom || m.user === currentUserRole) {
-                            container.appendChild(newEl);
-                        } else {
-                            const firstMsg = container.querySelector('.message');
-                            if (firstMsg) container.insertBefore(newEl, firstMsg);
-                            else container.appendChild(newEl);
-                        }
+                        if (firstLoadChat || isAtBottom || m.user === currentUserRole) container.appendChild(newEl);
+                        else container.prepend(newEl);
                         
                         if (!firstLoadChat && (isAtBottom || m.user === currentUserRole)) {
                             setTimeout(() => { newEl.scrollIntoView({ behavior: 'auto', block: 'end' }); }, 50);
@@ -228,7 +240,6 @@
             allImageUrlsAndCaptions = allMsgs.filter(m => m.imageUrl).map(m => ({url: m.imageUrl, caption: m.text}));
             document.getElementById('saved-list').innerHTML = allMsgs.filter(m => m.isSaved).map(s => `<div style="font-size:12px;background:#0001;padding:8px;border-radius:5px;margin-bottom:5px;"><strong>${s.user}</strong>: ${s.text || 'Image'}</div>`).join('');
 
-            // Pagination Button logic
             if (snap.docs.length >= msgLimit && !document.getElementById('load-more')) {
                 const btn = document.createElement('button');
                 btn.id = 'load-more'; btn.className = 'load-more-btn'; btn.innerText = 'Load Older Messages';
@@ -269,6 +280,13 @@
 
     async function send() {
         const t = input.value.trim(); if (!t && !pendingImageFile) return;
+        
+        // Optimistic UI: Add message instantly
+        const tempMsg = { user: currentUserRole, text: t, createdAt: null, reactions: {}, isSaved: false, replyTo: replyingTo };
+        const tempEl = createMessageElement(tempMsg, true);
+        container.appendChild(tempEl);
+        setTimeout(() => { tempEl.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 50);
+
         const r = replyingTo; input.value = ""; window.cancelReply();
         let url = null;
         if (pendingImageFile) {
@@ -277,7 +295,6 @@
             url = await getDownloadURL(snap.ref); window.cancelImagePreview();
         }
         await addDoc(collection(db, "messages"), { text: t, imageUrl: url, user: currentUserRole, createdAt: serverTimestamp(), isSaved: false, reactions: {}, replyTo: r });
-        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 50);
     }
 
     document.getElementById('send-btn').onclick = send;
